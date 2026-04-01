@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nirikshan</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+body { background-color: #020617; color: #f1f5f9; font-family: 'JetBrains Mono', monospace; }
+.glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(56, 189, 248, 0.2); }
+.neo-input { width: 100%; background: #0f172a; border: 1px solid #1e293b; color: #38bdf8; padding: 0.75rem; border-radius: 4px; outline: none; transition: 0.2s; }
+.neo-input:focus { border-color: #38bdf8; box-shadow: 0 0 12px rgba(56, 189, 248, 0.2); }
+.btn-launch { width: 100%; background: #0284c7; color: white; font-weight: 800; padding: 1rem; border-radius: 4px; text-transform: uppercase; transition: 0.3s; border: 1px solid #38bdf8; }
+.btn-launch:hover { background: #0369a1; box-shadow: 0 0 20px #38bdf8; transform: translateY(-2px); }
+.btn-launch:disabled { opacity: 0.5; cursor: not-allowed; }
+#toast-box { position: fixed; top: 20px; right: 20px; z-index: 100; }
+.toast { padding: 1rem 1.5rem; border-radius: 4px; color: white; margin-bottom: 0.5rem; animation: slide 0.4s ease forwards; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); }
+@keyframes slide { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #38bdf8; }
+</style>
+</head>
+<body class="p-6">
+<div id="toast-box"></div>
+<div class="max-w-6xl mx-auto">
+<header class="flex justify-between items-center mb-10 border-b border-slate-800 pb-4">
+<div>
+<h1 class="text-3xl font-black text-sky-500 tracking-tighter">Nirikshan</h1>
+<p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Autonomous Infrastructure Ledger</p>
+</div>
+<button onclick="syncChain()" class="text-xs font-bold border border-sky-500 px-4 py-2 text-sky-500 hover:bg-sky-500 hover:text-white transition">SYNC_NETWORK</button>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<div class="lg:col-span-4 space-y-6">
+<div class="glass p-6 rounded-lg">
+<h2 class="text-white font-bold mb-4 flex items-center"><span class="w-1 h-4 bg-sky-500 mr-2"></span>NEW_ENTRY</h2>
+<form id="f_propose" onsubmit="event.preventDefault(); submitProposal();" class="space-y-4">
+<input id="in_id" type="text" placeholder="ID (ex: AI-CAMPUS-01)" class="neo-input" required>
+<input id="in_title" type="text" placeholder="TITLE" class="neo-input" required>
+<input id="in_budget" type="number" placeholder="BUDGET" class="neo-input" required>
+<button type="submit" id="btn_sub" class="btn-launch">COMMIT_PROJECT</button>
+</form>
+</div>
+<div class="glass p-6 rounded-lg">
+<h2 class="text-white font-bold mb-4 flex items-center"><span class="w-1 h-4 bg-rose-500 mr-2"></span>AUDIT_UPDATE</h2>
+<form id="f_audit" onsubmit="event.preventDefault(); submitAudit();" class="space-y-4">
+<input id="au_id" type="text" placeholder="TARGET_ID" class="neo-input" required>
+<input id="au_spend" type="number" placeholder="FUNDS_SPENT" class="neo-input" required>
+<select id="au_status" class="neo-input">
+<option value="ACTIVE">ACTIVE</option>
+<option value="UNDER_AUDIT">UNDER_AUDIT</option>
+<option value="HALTED">HALTED</option>
+<option value="COMPLETED">COMPLETED</option>
+</select>
+<button type="submit" id="btn_aud" class="btn-launch !bg-rose-900 !border-rose-500">AUDIT_LEDGER</button>
+</form>
+</div>
+</div>
+<div class="lg:col-span-8">
+<div id="topology" class="h-48 glass rounded-lg mb-6 relative overflow-hidden">
+<div class="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
+</div>
+<div class="glass p-6 rounded-lg">
+<h2 class="text-white font-bold mb-4 border-b border-slate-800 pb-2">IMMUTABLE_CHAIN_FEED</h2>
+<div id="chain_feed" class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+<p class="text-slate-600 text-xs italic">Syncing with decentralized nodes...</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+const toast = (msg, err = false) => {
+const b = document.getElementById('toast-box');
+const t = document.createElement('div');
+t.className = `toast ${err ? 'bg-rose-600' : 'bg-sky-600'}`;
+t.innerText = msg;
+b.appendChild(t);
+setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
+}
+const API = 'http://localhost:8080/api';
+async function call(u, m, p) {
+try {
+const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: p ? JSON.stringify(p) : null });
+const cType = r.headers.get("content-type");
+if (!cType || !cType.includes("application/json")) { const errText = await r.text(); throw new Error(`Server Error: ${errText.substring(0, 30)}`); }
+const d = await r.json();
+if (!r.ok) throw new Error(d.error || 'Request failed');
+return d;
+} catch (e) { throw e; }
+}
+async function submitProposal() {
+const b = document.getElementById('btn_sub');
+b.disabled = true;
+const p = { payload: { project_id: document.getElementById('in_id').value, title: document.getElementById('in_title').value, budget: parseFloat(document.getElementById('in_budget').value), department: "INFRA_DEPT", status: "PROPOSED" }, endorser: "ADMIN" };
+try {
+await call(`${API}/project`, 'POST', p);
+toast("BLOCK_MINED_SUCCESSFULLY");
+document.getElementById('f_propose').reset();
+syncChain();
+} catch (e) { toast(e.message, true); } finally { b.disabled = false; }
+}
+async function submitAudit() {
+const b = document.getElementById('btn_aud');
+b.disabled = true;
+const p = { project_id: document.getElementById('au_id').value, fund_delta: parseFloat(document.getElementById('au_spend').value), status: document.getElementById('au_status').value, endorser: "AUDIT_NODE", details: "Consensus validated" };
+try {
+await call(`${API}/audit`, 'POST', p);
+toast("AUDIT_COMMITTED_TO_CHAIN");
+document.getElementById('f_audit').reset();
+syncChain();
+} catch (e) { toast(e.message, true); } finally { b.disabled = false; }
+}
+async function syncChain() {
+try {
+const c = await call(`${API}/ledger`, 'GET');
+const f = document.getElementById('chain_feed');
+f.innerHTML = [...c].reverse().map(b => `
+<div class="bg-slate-950 p-4 border border-slate-800 rounded relative group transition-all hover:border-sky-500">
+<div class="flex justify-between items-start mb-2">
+<div><span class="text-[10px] font-bold text-sky-500 bg-sky-500/10 px-2 py-0.5 rounded">NODE_${b.index}</span><h3 class="text-white font-bold mt-1">${b.payload.title}</h3></div>
+<span class="text-[10px] font-mono text-slate-500">${new Date(b.timestamp).toLocaleTimeString()}</span>
+</div>
+${b.index > 0 ? `<div class="grid grid-cols-2 gap-4 text-[11px] mb-3"><div><p class="text-slate-500">ID</p><p class="text-sky-400">${b.payload.project_id}</p></div><div><p class="text-slate-500">UTILIZATION</p><p class="text-emerald-400">$${b.payload.utilized?.toLocaleString()}</p></div></div>` : ''}
+<div class="text-[9px] font-mono text-slate-600 break-all bg-black/40 p-2 rounded">HASH: ${b.hash}</div>
+</div>`).join('');
+sync3DBlocks(c.length);
+} catch (e) { toast("SYNC_FAILED", true); }
+}
+const vis = document.getElementById('topology');
+const s = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(75, vis.clientWidth / vis.clientHeight, 0.1, 1000);
+const r = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+r.setSize(vis.clientWidth, vis.clientHeight);
+vis.appendChild(r.domElement);
+const g = new THREE.GridHelper(30, 30, 0x0ea5e9, 0x020617);
+g.position.y = -2;
+s.add(g);
+const light = new THREE.PointLight(0x38bdf8, 2, 50);
+light.position.set(0, 10, 10);
+s.add(light);
+s.add(new THREE.AmbientLight(0xffffff, 0.2));
+cam.position.set(0, 3, 10);
+cam.lookAt(0, 0, 0);
+let blocks3D = [];
+function sync3DBlocks(count) {
+while(blocks3D.length > 0) { s.remove(blocks3D.pop()); }
+const displayCount = Math.min(count, 8);
+for(let i = 0; i < displayCount; i++) {
+const geo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+const edges = new THREE.EdgesGeometry(geo);
+const mat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2 });
+const cube = new THREE.LineSegments(edges, mat);
+cube.position.set((i * 2.5) - ((displayCount-1)*1.25), 0, 0);
+s.add(cube);
+blocks3D.push(cube);
+}
+}
+function anim() { requestAnimationFrame(anim); g.rotation.y += 0.002; blocks3D.forEach(b => { b.rotation.x += 0.01; b.rotation.y += 0.01; }); r.render(s, cam); }
+anim();
+window.addEventListener('resize', () => {
+cam.aspect = vis.clientWidth / vis.clientHeight;
+cam.updateProjectionMatrix();
+r.setSize(vis.clientWidth, vis.clientHeight);
+});
+setTimeout(syncChain, 200);
+</script>
+</body>
+</html>
