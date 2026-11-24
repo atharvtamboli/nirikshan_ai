@@ -225,6 +225,7 @@ func validEvidence(e Evidence) bool {
 }
 func (a *App) routes(web string) http.Handler {
 	mux := http.NewServeMux()
+	registerDemo(mux, a.store.dir)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { reply(w, 200, map[string]bool{"ok": true}) })
 	mux.HandleFunc("GET /api/projects", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

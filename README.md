@@ -46,6 +46,21 @@ go run .
 
 ## Try one complete workflow
 
+For the interactive lifecycle demonstration, start the service in PowerShell:
+
+```powershell
+$env:NIRIKSHAN_DEMO = "1"
+go run .
+```
+
+Open http://localhost:8080/lifecycle.html. The Aravalli bridge is fictional. The demonstration desks record sanctions, tenders, bids, awards, work orders, construction, delivery records, bills, certifications, payments, inspections and citizen reports. Updates persist locally and refresh across open tabs. Demo writes require an explicit local opt-in.
+
+Citizen reports support optional photo uploads and approximate device location. The service strips image metadata, hashes the cleaned photo and flags matching images. A report can be acknowledged, resolved and reopened. The department desk is a local simulation. Structured bill entries support invoice references, quantities and rates, with arithmetic and duplicate-reference flags. Export a project evidence bundle with its photos and verify its included SHA-256 digests locally.
+
+The project tracker supports searchable state, district and category fields, planned dates, illustrative route endpoints and contractor-reported physical progress. Awards reference recorded quotations. Contract work items and approved quantity increases can be linked to bills, which are then certified against their recorded rate and remaining quantity. News links may be attached for review. The financial signals are deterministic comparisons of recorded figures.
+
+The local demo runs without paid services. Its workflow is fictional, and the public atlas continues to use separately sourced tender notices. Real department adoption requires verified accounts, project-linked official records and an agreed grievance delivery channel.
+
 1. Search for Boramcha. Open the official source beside its advertised amount. Inspect the missing award and payment fields.
 2. Open the bill worksheet. For a hypothetical line, use 12.5 billed units, 10 measured units, a ₹40 contract rate and ₹510 printed subtotal. The differences are ₹10 against the billed calculation and ₹110 against the measured calculation. Check the underlying units, approved changes and source records before drawing conclusions.
 3. In a local review session, submit an evidence link. Copy the receipt and confirm the entry awaits review. Open the reviewer desk, inspect the original, enter a reason, then accept or reject.
@@ -69,6 +84,13 @@ After deployment, check /healthz, open a project on a second device and verify a
 go vet ./...
 go test ./...
 node --test tests/worksheet.test.cjs
+```
+
+On Windows with Edge and a recent Node.js installed, run the end-to-end browser check:
+
+```powershell
+go build -o bin/nirikshan.exe .
+node tests/browser-smoke.cjs
 ```
 
 Department use requires named reviewer accounts, operational monitoring, moderation ownership and independently backed-up records. This release uses a single-instance event store. Live news scraping, automatic document OCR and independent blockchain anchoring are outside this implementation.

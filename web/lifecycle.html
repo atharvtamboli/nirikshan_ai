@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project lifecycle · Nirikshan</title>
+  <link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./lifecycle.css"><style>.report-photo{display:block;width:min(100%,320px);height:auto;border-radius:8px;margin:10px 0}#evidenceFields button,#discover button{margin:6px 4px 0 0}.route-track{display:flex;align-items:center;gap:12px;margin:16px 0}.route-track span{flex:1;border-top:4px dashed #397363;min-width:24px}.stages button{display:block;width:100%;background:transparent;color:var(--ink);padding:0;text-align:left}.stages button[aria-pressed=true]{text-decoration:underline;text-underline-offset:4px}.comparison{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}</style>
+  <script defer src="./lifecycle.js"></script>
+</head>
+<body>
+<header><div class="top"><a class="brand" href="./"><span class="mark">N</span>Nirikshan</a><nav><a href="./">Public atlas</a></nav></div></header>
+<main class="lifecycle">
+  <div class="intro"><div><p class="eyebrow">Fictional demonstration · India</p><h1>Follow the work.</h1><p>Explore every approval, bill, payment and inspection in one project history.</p></div><label>Choose project<select id="project"></select></label></div>
+  <div id="status" role="status" aria-live="polite"></div>
+  <section class="panel"><h2>Discover projects</h2><div class="fields"><label>Search by name, state, district or category<input id="projectSearch" type="search" placeholder="Udaipur, bridge, school…"></label></div><div id="discover"></div></section>
+  <section class="project-banner"><p class="eyebrow">Project overview</p><h2 id="name"></h2><p id="route"></p><p id="current"></p></section>
+  <section class="panel"><h2>Route and schedule</h2><div id="routeMap"></div><p id="schedule"></p><p id="progress"></p></section>
+  <div class="metrics" id="metrics"></div>
+  <section class="panel"><h2>Project tracker</h2><ol id="stages" class="stages"></ol><div id="stageDetail"></div></section>
+  <section class="panel"><h2>Financial review signals</h2><div id="riskSummary"></div></section>
+  <div class="split"><section class="panel"><h2>Money and records</h2><div id="money"></div></section><section class="panel"><h2>Activity timeline</h2><div id="history"></div></section></div>
+  <section class="panel"><h2>Citizen reports</h2><div id="reports"></div></section>
+  <section class="panel"><h2>Evidence export</h2><p>Download the project records and photos with SHA-256 digests. Verify a saved bundle against its recorded digests.</p><button type="button" id="export">Download project evidence</button><label>Verify saved bundle<input type="file" accept="application/json" id="verifyFile"></label><p id="verifyResult" role="status"></p></section>
+  <section class="panel"><h2>Local demonstration desks</h2><p>All entries are fictional. Select a desk to record the next event. Updates refresh across open tabs.</p>
+    <form id="event"><div class="fields">
+      <label>Desk<select id="role"><option value="government">Department</option><option value="contractor">Contractor</option><option value="engineer">Engineer</option><option value="citizen">Citizen</option></select></label>
+      <label>Action<select id="kind"></select></label>
+      <label id="projectIdLabel" hidden>New project identifier<input id="projectId" maxlength="100" placeholder="demo-road-1"></label>
+      <div class="wide" id="scopeFields" hidden><div class="fields">
+        <label>State<input id="state" maxlength="100"></label><label>District<input id="district" maxlength="100"></label>
+        <label>Category<input id="category" maxlength="80" placeholder="Bridge, road, school"></label>
+        <label>Start point<input id="startPoint" maxlength="160"></label><label>End point<input id="endPoint" maxlength="160"></label>
+        <label>Planned start<input type="date" id="startDate"></label><label>Planned completion<input type="date" id="endDate"></label>
+      </div></div>
+      <label id="progressField" hidden>Reported physical completion (%)<input type="number" id="progressValue" min="0" max="100" step="1" value="0"></label>
+      <label>Title<input id="title" required maxlength="160"></label>
+      <label id="amountLabel">Amount (₹)<input id="amount" inputmode="decimal" placeholder="0.00"></label>
+      <label id="refLabel">Related record<select id="ref"></select></label>
+      <div class="wide" id="quantityFields" hidden><div class="fields">
+        <label>Invoice or measurement reference<input id="invoice" maxlength="120"></label>
+        <label>Unit<input id="unit" maxlength="32" placeholder="m³"></label>
+        <label>Quantity<input id="quantity" inputmode="decimal" placeholder="120.000"></label>
+        <label>Contract rate (₹ per unit)<input id="rate" inputmode="decimal" placeholder="6000.00"></label>
+      </div></div>
+      <label class="wide">Details<textarea id="detail" rows="3" maxlength="4000" placeholder="Location, document reference, measurements or observation"></textarea></label>
+      <label class="wide">Supporting HTTPS document or news link (optional)<input id="source" type="url" maxlength="2048" placeholder="https://..."></label>
+      <div id="evidenceFields" class="wide" hidden>
+        <label>Photo evidence (optional)<input type="file" accept="image/jpeg,image/png" capture="environment" id="photo"></label>
+        <p>Use the camera or choose a photo. Image metadata is removed. Photos and location are review evidence.</p>
+        <button type="button" id="locate">Use my approximate location</button>
+        <button type="button" id="clearLocation">Clear location</button>
+        <p id="locStatus" role="status">Location not shared.</p>
+      </div>
+    </div><button type="submit" id="save">Record demo event</button><p id="result" role="status"></p></form>
+  </section>
+</main>
+</body></html>
