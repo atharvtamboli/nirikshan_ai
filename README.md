@@ -73,6 +73,12 @@ Set-Clipboard $env:REVIEW_TOKEN
 go run .
 ```
 
+## Department workspace
+
+The workspace starts with an empty project portfolio. The operator provisions named accounts and assigns non-department accounts to specific projects. A department officer records the sanction and tender, contractors submit quotations, the department selects an award, and the awarded contractor records work and bills. Engineers certify measurements and the department records payments against certified balances. Assigned citizens can file and follow their own reports.
+
+Run `go run . -workspace` and open [the local workspace](http://localhost:8080/lifecycle.html?mode=workspace). See the [workspace runbook](docs/WORKSPACE.md) for account setup, tender import and audit exports.
+
 ## Architecture
 
 ```mermaid
@@ -131,7 +137,7 @@ The browser journey checks mobile/desktop layout, recorded quality measurements,
 
 ## From demo to national pilot
 
-The current release runs locally and supports the complete illustrated project workflow. A real departmental pilot requires verified officer accounts, official project records, data-sharing and grievance routing arrangements, production storage, backups and moderation ownership. Automated OCR, external news ingestion and independently anchored blockchain receipts remain future work.
+The current release runs locally and supports the complete illustrated project workflow. A departmental pilot requires an operator to verify staff identity, provision accounts, supply official project records, and establish data-sharing, moderation and grievance routing. The workspace uses one local service and persistent files. Automated OCR, external news ingestion and independently anchored blockchain receipts remain future work.
 
 The repository includes a hosting blueprint for a later deployment. Local use does not require hosting services.
 

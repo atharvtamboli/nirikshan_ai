@@ -15,3 +15,16 @@ jobs:
       - run: go test -race ./...
       - run: go build -o /tmp/nirikshan .
       - run: node --test tests/*.test.cjs
+  browser:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: go build -o bin/nirikshan.exe .
+      - run: node tests/browser-smoke.cjs

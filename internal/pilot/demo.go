@@ -23,6 +23,7 @@ import (
 )
 
 type demoEvent struct {
+	Actor         string  `json:"actor,omitempty"`
 	ID            string  `json:"id"`
 	Project       string  `json:"project"`
 	Kind          string  `json:"kind"`
@@ -320,16 +321,75 @@ func demoPhoto(raw string) ([]byte, string, error) {
 }
 
 func registerDemo(mux *http.ServeMux, dir string) {
+	registerLifecycle(mux, dir, nil)
+}
+
+func registerLifecycle(mux *http.ServeMux, dir string, auth *workspaceAuth) {
 	var mu sync.Mutex
-	path := filepath.Join(dir, "demo-lifecycle.json")
-	photoDir := filepath.Join(dir, "demo-photos")
+	api, filePrefix := "/api/demo", "demo"
+	if auth != nil {
+		api, filePrefix = "/api/workspace/projects", "workspace"
+	}
+	path := filepath.Join(dir, filePrefix+"-lifecycle.json")
+	photoDir := filepath.Join(dir, filePrefix+"-photos")
+	load := func() ([]demoEvent, error) {
+		events := []demoEvent{}
+		if auth == nil {
+			events = demoSeed()
+		}
+		b, err := os.ReadFile(path)
+		if os.IsNotExist(err) {
+			return events, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(b, &events); err != nil {
+			return nil, err
+		}
+		if auth == nil {
+			existing := map[string]bool{}
+			for _, event := range events {
+				existing[event.Project] = true
+			}
+			for _, event := range demoSeed() {
+				if !existing[event.Project] {
+					events = append(events, event)
+				}
+			}
+		}
+		return events, nil
+	}
 	allowed := func(r *http.Request) bool {
 		host, _, _ := net.SplitHostPort(r.RemoteAddr)
 		ip := net.ParseIP(host)
 		return os.Getenv("NIRIKSHAN_DEMO") == "1" && ip != nil && ip.IsLoopback()
 	}
-	mux.HandleFunc("GET /api/demo/photo/{hash}", func(w http.ResponseWriter, r *http.Request) {
-		if !allowed(r) {
+	mux.HandleFunc("GET "+api+"/photo/{hash}", func(w http.ResponseWriter, r *http.Request) {
+		if auth != nil {
+			account, ok := auth.require(w, r)
+			if !ok {
+				return
+			}
+			mu.Lock()
+			events, err := load()
+			mu.Unlock()
+			if err != nil {
+				fail(w, 503, "Project history is unavailable")
+				return
+			}
+			visible := false
+			for _, event := range account.visible(events) {
+				if event.PhotoHash == r.PathValue("hash") {
+					visible = true
+					break
+				}
+			}
+			if !visible {
+				http.NotFound(w, r)
+				return
+			}
+		} else if !allowed(r) {
 			fail(w, 403, "Local demo only")
 			return
 		}
@@ -342,40 +402,48 @@ func registerDemo(mux *http.ServeMux, dir string) {
 		w.Header().Set("Cache-Control", "no-store")
 		http.ServeFile(w, r, filepath.Join(photoDir, hash+".jpg"))
 	})
-	mux.HandleFunc("/api/demo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		// Unauthenticated demonstration writes are restricted to the local machine.
-		if !allowed(r) {
+		var account workspaceAccount
+		if auth != nil {
+			var ok bool
+			account, ok = auth.require(w, r)
+			if !ok {
+				return
+			}
+		} else if !allowed(r) {
 			fail(w, 403, "Start the local server with NIRIKSHAN_DEMO=1")
 			return
 		}
 		mu.Lock()
 		defer mu.Unlock()
-		events := demoSeed()
-		b, err := os.ReadFile(path)
-		if err == nil {
-			if json.Unmarshal(b, &events) != nil {
-				fail(w, 500, "Demo history is unreadable")
-				return
-			}
-			// Introduce new fictional sample projects without rewriting an existing project's history.
-			existingProjects := map[string]bool{}
-			for _, event := range events {
-				existingProjects[event.Project] = true
-			}
-			for _, event := range demoSeed() {
-				if !existingProjects[event.Project] {
-					events = append(events, event)
-				}
-			}
-		} else if !os.IsNotExist(err) {
-			fail(w, 500, "Demo history is unavailable")
+		events, err := load()
+		if err != nil {
+			fail(w, 503, "Project history is unavailable")
 			return
 		}
 		switch r.Method {
 		case http.MethodGet:
+			if auth != nil {
+				events = account.visible(events)
+				if project := r.URL.Query().Get("audit"); workspaceID.MatchString(project) {
+					auditCSV(w, project, events)
+					return
+				}
+			}
 			if project := r.URL.Query().Get("snapshot"); project != "" {
-				snapshot, err := signDemoSnapshot(dir, project, events)
+				found := false
+				for _, event := range events {
+					if event.Project == project {
+						found = true
+						break
+					}
+				}
+				if !found {
+					fail(w, 404, "Project unavailable")
+					return
+				}
+				snapshot, err := signSnapshot(dir, project, events, auth == nil)
 				if err != nil {
 					fail(w, 503, "Could not sign project snapshot")
 					return
@@ -395,6 +463,21 @@ func registerDemo(mux *http.ServeMux, dir string) {
 			if dec.Decode(&e) != nil || dec.Decode(&struct{}{}) != io.EOF {
 				fail(w, 400, "Invalid or oversized report")
 				return
+			}
+			if e.Actor != "" {
+				fail(w, 422, "Record account is assigned by the server")
+				return
+			}
+			if auth != nil {
+				if !workspaceID.MatchString(e.Project) {
+					fail(w, 422, "Use a project ID with up to 64 lowercase letters, digits or hyphens")
+					return
+				}
+				if !account.canRecord(events, e) {
+					fail(w, 403, "This account cannot record that action for this project")
+					return
+				}
+				e.Actor = account.Name
 			}
 			if e.PhotoHash != "" || e.Duplicate || (e.Location && (e.Latitude < -90 || e.Latitude > 90 || e.Longitude < -180 || e.Longitude > 180 || e.Accuracy < 0 || e.Accuracy > 100000)) {
 				fail(w, 422, "Invalid evidence metadata")
@@ -482,14 +565,14 @@ func registerDemo(mux *http.ServeMux, dir string) {
 			}
 			e.Time = time.Now().UTC().Format(time.RFC3339Nano)
 			events = append(events, e)
-			b, err = json.Marshal(events)
+			b, err := json.Marshal(events)
 			if err != nil {
-				fail(w, 500, "Could not encode demo history")
+				fail(w, 500, "Could not encode project history")
 				return
 			}
 			f, err := os.CreateTemp(dir, "demo-*")
 			if err != nil {
-				fail(w, 503, "Could not save demo history")
+				fail(w, 503, "Could not save project history")
 				return
 			}
 			defer os.Remove(f.Name())
@@ -505,7 +588,7 @@ func registerDemo(mux *http.ServeMux, dir string) {
 				err = os.Rename(f.Name(), path)
 			}
 			if err != nil {
-				fail(w, 503, "Could not save demo history")
+				fail(w, 503, "Could not save project history")
 				return
 			}
 			reply(w, 201, e)

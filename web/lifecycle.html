@@ -4,6 +4,8 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Project lifecycle · Nirikshan</title>
   <link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./lifecycle.css"><style>.report-photo{display:block;width:min(100%,320px);height:auto;border-radius:8px;margin:10px 0}#evidenceFields button,#discover button{margin:6px 4px 0 0}.route-track{display:flex;align-items:center;gap:12px;margin:16px 0}.route-track span{flex:1;border-top:4px dashed #397363;min-width:24px}.stages button{display:block;width:100%;background:transparent;color:var(--ink);padding:0;text-align:left}.stages button[aria-pressed=true]{text-decoration:underline;text-underline-offset:4px}.comparison{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}</style>
+  <script defer src="./tender-import.js"></script>
+  <script defer src="./workspace.js"></script>
   <script defer src="./lifecycle.js"></script>
   <style>
     .jump-nav{position:sticky;top:0;z-index:2;display:flex;gap:8px;overflow:auto;background:var(--paper);padding:10px 0;margin:10px 0;scrollbar-width:thin}
@@ -21,14 +23,27 @@
 <body>
 <header><div class="top"><a class="brand" href="./"><span class="mark">N</span>Nirikshan</a><nav><a href="./">Public atlas</a></nav></div></header>
 <main class="lifecycle">
-  <div class="intro"><div><p class="eyebrow">Fictional demonstration · India</p><h1>Follow the work.</h1><p>Explore every approval, bill, payment and inspection in one project history.</p></div><label>Choose project<select id="project"></select></label></div>
+  <div class="intro"><div><p class="eyebrow" id="modeLabel">Fictional demonstration · India</p><h1>Follow the work.</h1><p>Explore every approval, bill, payment and inspection in one project history.</p></div><label>Choose project<select id="project"></select></label></div>
   <div id="status" role="status" aria-live="polite"></div>
+  <section class="panel" id="workspaceAccount" hidden>
+    <h2>Workspace access</h2>
+    <form id="signIn"><div class="fields">
+      <label>Username<input id="accountName" autocomplete="username" maxlength="64" required></label>
+      <label>Password<input id="accountPassword" type="password" autocomplete="current-password" maxlength="256" required></label>
+    </div><button type="submit">Sign in</button></form>
+    <div id="signedIn" hidden><span id="accountStatus"></span> <button type="button" id="signOut">Sign out</button></div>
+    <p id="sessionStatus" role="status"></p>
+  </section>
   <section class="demo-guide" aria-label="Demo walkthrough">
     <div><strong>Start here</strong><p>Follow one fictional project, record a new issue, respond from the department desk, then verify the signed evidence.</p></div>
     <button type="button" id="guideReport">Try a citizen report</button>
     <a href="#verification">Verify a record</a>
+    <a href="./lifecycle.html?mode=workspace">Department workspace</a>
     <p class="guide-note" id="demoSetup" hidden>Start the service with <code>go run . -demo</code> to enable fictional project changes.</p>
   </section>
+  <div id="workspaceContent">
+  <section class="panel" id="portfolio" hidden><h2>Project portfolio</h2><div id="portfolioProjects" class="metrics"></div></section>
+  <div id="projectContent">
   <nav class="jump-nav" aria-label="Project sections"><a href="#tracker">Tracker</a><a href="#finance">Finances</a><a href="#quality">Quality</a><a href="#citizen">Citizen reports</a><a href="#desk">Enter records</a><a href="#verification">Verify evidence</a></nav>
   <section class="project-banner"><p class="eyebrow">Project overview</p><h2 id="name"></h2><p id="route"></p><p id="current"></p></section>
   <div class="project-link"><button type="button" id="copyProject">Copy project link</button><span id="linkStatus" role="status"></span></div>
@@ -41,8 +56,9 @@
   <section class="panel" id="citizen"><div class="section-heading"><h2>Citizen reports</h2><button type="button" id="reportNow">Report an issue</button></div><div id="reportStats"></div><div id="reports"></div></section>
   <section class="panel"><h2>News and supporting sources</h2><div id="newsList"></div></section>
   <section class="panel" id="quality"><h2>Quality inspection evidence</h2><p>Measured results against the documented acceptance criteria.</p><div id="qualityResults"></div></section>
-  <section class="panel" id="verification"><h2>Signed evidence export</h2><p>Download records signed by this local installation with Ed25519, together with photo digests. Save the signing fingerprint separately to check future exports.</p><button type="button" id="export">Download signed evidence</button><label>Trusted signing fingerprint (optional)<input id="trustedKey" maxlength="64" placeholder="64-character SHA-256 fingerprint"></label><label>Verify saved bundle<input type="file" accept="application/json" id="verifyFile"></label><p id="verifyResult" role="status"></p></section>
-  <section class="panel" id="desk"><h2>Local demonstration desks</h2><p>All entries are fictional. Select a desk to record the next event. Updates refresh across open tabs.</p><div id="nextAction"></div>
+  <section class="panel" id="verification"><h2>Signed evidence export</h2><p>Download records signed by this local installation with Ed25519, together with photo digests. Save the signing fingerprint separately to check future exports.</p><button type="button" id="export">Download signed evidence</button> <a id="auditDownload" hidden>Download audit CSV</a><label>Trusted signing fingerprint (optional)<input id="trustedKey" maxlength="64" placeholder="64-character SHA-256 fingerprint"></label><label>Verify saved bundle<input type="file" accept="application/json" id="verifyFile"></label><p id="verifyResult" role="status"></p></section>
+  </div>
+  <section class="panel" id="desk"><h2 id="deskHeading">Local demonstration desks</h2><p id="deskDescription">All entries are fictional. Select a desk to record the next event. Updates refresh across open tabs.</p><div id="nextAction"></div>
     <form id="event"><div class="fields">
       <label>Desk<select id="role"><option value="government">Department</option><option value="contractor">Contractor</option><option value="engineer">Engineer</option><option value="citizen">Citizen</option></select></label>
       <label>Action<select id="kind"></select></label>
@@ -54,6 +70,14 @@
         <label>Planned start<input type="date" id="startDate"></label><label>Planned completion<input type="date" id="endDate"></label>
       </div></div>
       <label id="progressField" hidden>Reported physical completion (%)<input type="number" id="progressValue" min="0" max="100" step="1" value="0"></label>
+      <details id="tenderImport" class="wide" hidden>
+        <summary>Import tender notice text</summary>
+        <p>Choose a UTF-8 text file or paste text from a tender notice or a text-based PDF. Review the extracted fields before recording the tender.</p>
+        <label>Text file<input type="file" id="tenderFile" accept=".txt,text/plain"></label>
+        <label>Notice text<textarea id="tenderText" rows="5" maxlength="150000"></textarea></label>
+        <button type="button" id="extractTender">Extract fields</button>
+        <p id="tenderStatus" role="status"></p>
+      </details>
       <label>Title<input id="title" required maxlength="160"></label>
       <label id="amountLabel">Amount (₹)<input id="amount" inputmode="decimal" placeholder="0.00"></label>
       <label id="refLabel">Related record<select id="ref"></select></label>
@@ -81,5 +105,6 @@
       </div>
     </div><button type="submit" id="save">Record demo event</button><p id="result" role="status"></p></form>
   </section>
+  </div>
 </main>
 </body></html>
