@@ -5,22 +5,35 @@
   <title>Project lifecycle · Nirikshan</title>
   <link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./lifecycle.css"><style>.report-photo{display:block;width:min(100%,320px);height:auto;border-radius:8px;margin:10px 0}#evidenceFields button,#discover button{margin:6px 4px 0 0}.route-track{display:flex;align-items:center;gap:12px;margin:16px 0}.route-track span{flex:1;border-top:4px dashed #397363;min-width:24px}.stages button{display:block;width:100%;background:transparent;color:var(--ink);padding:0;text-align:left}.stages button[aria-pressed=true]{text-decoration:underline;text-underline-offset:4px}.comparison{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}</style>
   <script defer src="./lifecycle.js"></script>
+  <style>
+    .jump-nav{position:sticky;top:0;z-index:2;display:flex;gap:8px;overflow:auto;background:var(--paper);padding:10px 0;margin:10px 0;scrollbar-width:thin}
+    .jump-nav a{white-space:nowrap;text-decoration:none;border:1px solid var(--line);border-radius:30px;padding:8px 13px;background:#fff;font-size:14px}
+    .jump-nav a:hover{background:#e6efe9}.panel[id]{scroll-margin-top:68px}
+    .fund-row{margin:13px 0}.fund-heading{display:flex;justify-content:space-between;gap:12px;margin-bottom:6px;font-size:14px;flex-wrap:wrap}
+    .fund-track{height:12px;background:#edf0e9;border-radius:8px;overflow:hidden}.fund-bar{background:#367861;height:100%;border-radius:8px;min-width:0}
+    .fund-row:last-child .fund-bar{background:#bd812b}.section-heading{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}.section-heading h2{margin:0}
+    #reportStats{margin:14px 0;color:var(--soft);font-weight:650}#nextAction{margin:15px 0}#verifyResult{overflow-wrap:anywhere}
+    @media(max-width:680px){.jump-nav{margin-inline:-6px}.fund-heading strong{font-size:13px}}
+  </style>
 </head>
 <body>
 <header><div class="top"><a class="brand" href="./"><span class="mark">N</span>Nirikshan</a><nav><a href="./">Public atlas</a></nav></div></header>
 <main class="lifecycle">
   <div class="intro"><div><p class="eyebrow">Fictional demonstration · India</p><h1>Follow the work.</h1><p>Explore every approval, bill, payment and inspection in one project history.</p></div><label>Choose project<select id="project"></select></label></div>
   <div id="status" role="status" aria-live="polite"></div>
+  <nav class="jump-nav" aria-label="Project sections"><a href="#tracker">Tracker</a><a href="#finance">Finances</a><a href="#quality">Quality</a><a href="#citizen">Citizen reports</a><a href="#desk">Enter records</a><a href="#verification">Verify evidence</a></nav>
   <section class="panel"><h2>Discover projects</h2><div class="fields"><label>Search by name, state, district or category<input id="projectSearch" type="search" placeholder="Udaipur, bridge, school…"></label></div><div id="discover"></div></section>
   <section class="project-banner"><p class="eyebrow">Project overview</p><h2 id="name"></h2><p id="route"></p><p id="current"></p></section>
   <section class="panel"><h2>Route and schedule</h2><div id="routeMap"></div><p id="schedule"></p><p id="progress"></p></section>
   <div class="metrics" id="metrics"></div>
-  <section class="panel"><h2>Project tracker</h2><ol id="stages" class="stages"></ol><div id="stageDetail"></div></section>
-  <section class="panel"><h2>Financial review signals</h2><div id="riskSummary"></div></section>
+  <section class="panel" id="tracker"><h2>Project tracker</h2><ol id="stages" class="stages"></ol><div id="stageDetail"></div></section>
+  <section class="panel" id="finance"><h2>Financial overview</h2><div id="fundFlow"></div><h3>Review signals</h3><div id="riskSummary"></div></section>
   <div class="split"><section class="panel"><h2>Money and records</h2><div id="money"></div></section><section class="panel"><h2>Activity timeline</h2><div id="history"></div></section></div>
-  <section class="panel"><h2>Citizen reports</h2><div id="reports"></div></section>
-  <section class="panel"><h2>Evidence export</h2><p>Download the project records and photos with SHA-256 digests. Verify a saved bundle against its recorded digests.</p><button type="button" id="export">Download project evidence</button><label>Verify saved bundle<input type="file" accept="application/json" id="verifyFile"></label><p id="verifyResult" role="status"></p></section>
-  <section class="panel"><h2>Local demonstration desks</h2><p>All entries are fictional. Select a desk to record the next event. Updates refresh across open tabs.</p>
+  <section class="panel" id="citizen"><div class="section-heading"><h2>Citizen reports</h2><button type="button" id="reportNow">Report an issue</button></div><div id="reportStats"></div><div id="reports"></div></section>
+  <section class="panel"><h2>News and supporting sources</h2><div id="newsList"></div></section>
+  <section class="panel" id="quality"><h2>Quality inspection evidence</h2><p>Measured results against the documented acceptance criteria.</p><div id="qualityResults"></div></section>
+  <section class="panel" id="verification"><h2>Signed evidence export</h2><p>Download records signed by this local installation with Ed25519, together with photo digests. Save the signing fingerprint separately to check future exports.</p><button type="button" id="export">Download signed evidence</button><label>Trusted signing fingerprint (optional)<input id="trustedKey" maxlength="64" placeholder="64-character SHA-256 fingerprint"></label><label>Verify saved bundle<input type="file" accept="application/json" id="verifyFile"></label><p id="verifyResult" role="status"></p></section>
+  <section class="panel" id="desk"><h2>Local demonstration desks</h2><p>All entries are fictional. Select a desk to record the next event. Updates refresh across open tabs.</p><div id="nextAction"></div>
     <form id="event"><div class="fields">
       <label>Desk<select id="role"><option value="government">Department</option><option value="contractor">Contractor</option><option value="engineer">Engineer</option><option value="citizen">Citizen</option></select></label>
       <label>Action<select id="kind"></select></label>
@@ -43,6 +56,13 @@
       </div></div>
       <label class="wide">Details<textarea id="detail" rows="3" maxlength="4000" placeholder="Location, document reference, measurements or observation"></textarea></label>
       <label class="wide">Supporting HTTPS document or news link (optional)<input id="source" type="url" maxlength="2048" placeholder="https://..."></label>
+      <div class="wide" id="qualityFields" hidden><div class="fields">
+        <label>Sample or lab reference<input id="sample" maxlength="120"></label>
+        <label>Measurement unit<input id="testUnit" maxlength="32" placeholder="MPa"></label>
+        <label>Acceptance rule<select id="testRule"><option value="minimum">At least</option><option value="maximum">At most</option></select></label>
+        <label>Specified limit<input id="testLimit" inputmode="decimal"></label>
+        <label>Measured result<input id="testValue" inputmode="decimal"></label>
+      </div></div>
       <div id="evidenceFields" class="wide" hidden>
         <label>Photo evidence (optional)<input type="file" accept="image/jpeg,image/png" capture="environment" id="photo"></label>
         <p>Use the camera or choose a photo. Image metadata is removed. Photos and location are review evidence.</p>

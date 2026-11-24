@@ -77,6 +77,11 @@ func TestDemoLifecycle(t *testing.T) {
 	send(demoEvent{ID: "award-3", Project: "demo-road", Kind: "award", Title: "Award", Amount: 90000, Ref: "bid-1"}, 201)
 	send(demoEvent{ID: "variation-1", Project: "demo-bridge", Kind: "variation", Title: "Additional work", Detail: "Approved increase", Ref: "seed-item", Unit: "m3", QuantityMilli: 1000, RatePaise: 600000, Amount: 600000}, 201)
 	send(demoEvent{ID: "bill-invalid", Project: "demo-bridge", Kind: "bill", Title: "Rate mismatch", Ref: "seed-item", Unit: "m3", QuantityMilli: 1000, RatePaise: 500000, Amount: 500000}, 422)
+	test := demoEvent{ID: "quality-1", Project: "demo-bridge", Kind: "quality_test", Title: "Concrete cylinder result", Detail: "Illustrative lab sheet Q-01", Ref: "seed-item", Sample: "Q-01", TestUnit: "MPa", TestRule: "minimum", TestLimit: 30000, TestValue: 28000}
+	send(test, 201)
+	test.ID = "quality-2"
+	test.Ref = "missing"
+	send(test, 422)
 	send(demoEvent{ID: "bill-2", Project: "demo-bridge", Kind: "bill", Title: "Structured bill", Invoice: "INV-02", Unit: "m3", QuantityMilli: 10000, RatePaise: 600000, Amount: 6000000}, 201)
 	certificate := demoEvent{ID: "cert-2", Project: "demo-bridge", Kind: "certificate", Title: "Measurement", Ref: "bill-2", Unit: "m3", QuantityMilli: 8000, RatePaise: 600000, Amount: 4800000}
 	send(certificate, 201)

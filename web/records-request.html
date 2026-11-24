@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Request project records · Nirikshan</title>
+  <link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./lifecycle.css">
+  <script defer src="./records-request.js"></script>
+</head>
+<body>
+<header><div class="top"><a class="brand" href="./"><span class="mark" aria-hidden="true">N</span>Nirikshan</a><nav><a href="./">Public atlas</a></nav></div></header>
+<main class="lifecycle">
+  <div class="intro"><div><p class="eyebrow">Public record access</p><h1>Follow the paper trail.</h1><p>Prepare a request using the actual tender ID and issuing authority from the Udaipur catalog.</p></div></div>
+  <section class="panel"><div class="fields">
+    <label>Project<select id="requestProject"></select></label>
+    <label>Language<select id="requestLanguage"><option value="en">English</option><option value="hi">Hindi</option></select></label>
+  </div><p id="requestAuthority"></p><a id="requestSource" rel="noopener noreferrer" target="_blank">Open official tender notice</a>
+  <h2>Records to request</h2>
+  <div id="requestOptions"></div><button type="button" id="generateRequest">Prepare draft</button></section>
+  <section class="panel"><label>Editable request draft<textarea id="requestDraft" rows="18"></textarea></label><p>The draft stays on your device. Review the issuing office's submission process before filing it.</p><button type="button" id="copyRequest">Copy draft</button> <button type="button" id="downloadRequest">Download draft</button><p id="requestStatus" role="status"></p></section>
+</main>
+</body>
+</html>

@@ -5,7 +5,9 @@ const labels = {sanction:"Government sanction",tender:"Tender published",award:"
 roles.government.push("acknowledge","resolve");
 roles.government.push("work_item","variation");
 roles.citizen.push("reopen","news");
+roles.engineer.push("quality_test");
 Object.assign(labels,{acknowledge:"Department acknowledgement",resolve:"Repair or resolution",reopen:"Report reopened",work_item:"Contract work item",variation:"Approved quantity increase",news:"News source for review"});
+labels.quality_test="Quality test result";
 let events = [], pending = null, locationEvidence = {}, locationRequest = 0, selectedStage = "";
 const money = n => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(n/100);
 function node(tag,text,cls){const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;return el;}
@@ -21,7 +23,9 @@ function configure(){
   $("refLabel").hidden=!["award","bill","variation","certificate","payment","response","acknowledge","resolve","reopen"].includes(kind);
   $("evidenceFields").hidden=!["report","resolve"].includes(kind);
   $("quantityFields").hidden=!["bill","certificate","delivery","work_item","variation"].includes(kind);
-  const target=kind==="award"?"bid":["bill","variation"].includes(kind)?"work_item":["certificate","payment"].includes(kind)?"bill":"report";
+  $("qualityFields").hidden=kind!=="quality_test";
+  if(kind==="quality_test")$("refLabel").hidden=false;
+  const target=kind==="award"?"bid":["bill","variation","quality_test"].includes(kind)?"work_item":["certificate","payment"].includes(kind)?"bill":"report";
   const options=records().filter(e=>e.kind===target).map(e=>option(e.id,e.title+" · "+e.id));
   if(kind==="bill")options.unshift(option("","Unlinked bill — review required"));
   $("ref").replaceChildren(...options);
@@ -49,6 +53,13 @@ function render(){
   $("stageDetail").tabIndex=-1;
   const stageRecord=rows.find(e=>e.kind===selectedStage);$("stageDetail").replaceChildren(stageRecord?record(stageRecord):node("p",labels[selectedStage]+" · awaiting record"));
   const total=kind=>rows.filter(e=>e.kind===kind).reduce((sum,e)=>sum+e.amountPaise,0);
+  const funding=[["Sanction",total("sanction")],["Tender estimate",total("tender")],["Contract award",total("award")],["Bills submitted",total("bill")],["Certified",total("certificate")],["Paid",total("payment")]];
+  const scale=Math.max(1,...funding.map(([,value])=>value));
+  $("fundFlow").replaceChildren(...funding.map(([label,value])=>{
+    const row=node("div","","fund-row"),heading=node("div","","fund-heading");
+    heading.append(node("span",label),node("strong",value?money(value):"Awaiting record"));
+    const track=node("div","","fund-track"),bar=node("div","","fund-bar");bar.style.width=(value/scale*100)+"%";track.append(bar);track.setAttribute("aria-hidden","true");row.append(heading,track);return row;
+  }));
   $("metrics").replaceChildren(...[["Sanction",total("sanction")],["Award",total("award")],["Certified",total("certificate")],["Paid",total("payment")]].map(([label,num])=>{const card=node("div","","metric");card.append(node("span",label),node("strong",num?money(num):"Awaiting record"));return card;}));
   const signals=[];
   if(total("bill")>total("certificate"))signals.push(money(total("bill")-total("certificate"))+" billed and awaiting certification.");
@@ -79,10 +90,31 @@ function render(){
   }));
   $("history").replaceChildren(...rows.slice().reverse().map(record));
   $("reports").replaceChildren(...rows.filter(e=>e.kind==="report").map(e=>{const card=record(e),responses=rows.filter(x=>["response","acknowledge","resolve","reopen"].includes(x.kind)&&x.ref===e.id);const last=responses.at(-1)?.kind;card.append(node("strong",last==="resolve"?"Resolved":last==="reopen"?"Reopened":last?"Acknowledged":"Submitted · awaiting department"),...responses.map(record));return card;}));
+  const reports=rows.filter(e=>e.kind==="report");
+  const resolved=reports.filter(e=>rows.filter(x=>["response","acknowledge","resolve","reopen"].includes(x.kind)&&x.ref===e.id).at(-1)?.kind==="resolve").length;
+  $("reportStats").textContent=reports.length+" submitted · "+(reports.length-resolved)+" open · "+resolved+" resolved";
   if(!$("reports").children.length)$("reports").append(node("p","No reports recorded."));
+  const news=rows.filter(e=>e.kind==="news");
+  $("newsList").replaceChildren(...(news.length?news.map(record):[node("p","No project news linked yet.")]));
+  const tests=rows.filter(e=>e.kind==="quality_test");
+  $("qualityResults").replaceChildren(...(tests.length?tests.map(e=>{
+    const card=record(e),value=e.testValueMilli||0,limit=e.testLimitMilli||0,pass=e.testRule==="minimum"?value>=limit:value<=limit;
+    const linked=rows.find(x=>x.id===e.ref);
+    card.append(node("p",(linked?.title||"Work item")+" · sample "+e.sample),node("p","Recorded measurement: "+value/1000+" "+e.testUnit+" · criterion: "+e.testRule+" "+limit/1000+" "+e.testUnit),node("strong",pass?"Meets recorded criterion":"Outside recorded criterion — engineer review needed",pass?"":"flag"));return card;
+  }):[node("p","No measured quality test records available.")]));
+  $("nextAction").replaceChildren();
+  if(current<stages.length-1){
+    const next=stages[current+1],role=Object.keys(roles).find(r=>roles[r].includes(next));
+    const button=node("button","Record next stage: "+labels[next]);button.type="button";button.addEventListener("click",()=>chooseAction(role,next));
+    $("nextAction").append(button);
+  }
   configure();
   discover();
 }
+function chooseAction(role,kind){
+  $("role").value=role;$("role").dispatchEvent(new Event("change"));$("kind").value=kind;configure();$("desk").scrollIntoView({behavior:"smooth"});$("title").focus({preventScroll:true});
+}
+$("reportNow").addEventListener("click",()=>chooseAction("citizen","report"));
 function discover(){
   const query=$("projectSearch").value.trim().toLowerCase();
   const matches=events.filter(e=>e.kind==="sanction"&&[e.title,e.state,e.district,e.category,e.detail].join(" ").toLowerCase().includes(query));
@@ -110,16 +142,19 @@ function toBase64(bytes){let binary="";for(let i=0;i<bytes.length;i+=8192)binary
 $("export").addEventListener("click",async()=>{
   $("export").disabled=true;
   try{
-    const rows=records(),photos={},payload=JSON.stringify({fictional:true,exportedAt:new Date().toISOString(),events:rows});
+    const signedResponse=await fetch("./api/demo?snapshot="+encodeURIComponent($("project").value),{cache:"no-store"});
+    const signed=await signedResponse.json();
+    if(!signedResponse.ok)throw Error(signed.error);
+    const rows=JSON.parse(signed.payload).events,photos={};
     for(const hash of new Set(rows.map(e=>e.photoHash).filter(Boolean))){
       const response=await fetch("./api/demo/photo/"+hash);if(!response.ok)throw Error("Photo unavailable: "+hash);
       const bytes=new Uint8Array(await response.arrayBuffer());if(await sha256(bytes)!==hash)throw Error("Photo digest mismatch: "+hash);
       photos[hash]=toBase64(bytes);
     }
-    const bundle={format:"nirikshan-demo-v1",payload,digest:await sha256(new TextEncoder().encode(payload)),photos};
+    const bundle={...signed,photos};
     const url=URL.createObjectURL(new Blob([JSON.stringify(bundle,null,2)],{type:"application/json"}));
     const link=node("a","");link.href=url;link.download="nirikshan-demo-evidence.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-    $("verifyResult").textContent="Export created with "+Object.keys(photos).length+" photos.";
+    $("verifyResult").textContent="Signed export created with "+Object.keys(photos).length+" photos. Signing fingerprint: "+signed.fingerprint;
   }catch(err){$("verifyResult").textContent=err.message;}finally{$("export").disabled=false;}
 });
 $("verifyFile").addEventListener("change",async()=>{
@@ -127,12 +162,21 @@ $("verifyFile").addEventListener("change",async()=>{
   try{
     if(file.size>50000000)throw Error("Bundle exceeds 50 MB.");
     const bundle=JSON.parse(await file.text());
-    if(bundle.format!=="nirikshan-demo-v1"||await sha256(new TextEncoder().encode(bundle.payload))!==bundle.digest)throw Error("Record digest mismatch.");
+    const payloadBytes=new TextEncoder().encode(bundle.payload);
+    if(!["nirikshan-demo-v1","nirikshan-demo-v2"].includes(bundle.format)||await sha256(payloadBytes)!==bundle.digest)throw Error("Record digest mismatch.");
+    const trusted=$("trustedKey").value.trim().toLowerCase();
+    if(bundle.format==="nirikshan-demo-v2"){
+      const publicBytes=fromBase64(bundle.publicKey);
+      if(await sha256(publicBytes)!==bundle.fingerprint)throw Error("Signing fingerprint mismatch.");
+      if(trusted&&trusted!==bundle.fingerprint)throw Error("Signer differs from trusted fingerprint.");
+      const key=await crypto.subtle.importKey("raw",publicBytes,{name:"Ed25519"},false,["verify"]);
+      if(!await crypto.subtle.verify("Ed25519",key,fromBase64(bundle.signature),payloadBytes))throw Error("Invalid record signature.");
+    }else if(trusted)throw Error("Unsigned legacy bundle cannot establish signer identity.");
     const data=JSON.parse(bundle.payload);
     for(const hash of new Set(data.events.map(e=>e.photoHash).filter(Boolean))){
       if(!bundle.photos?.[hash]||await sha256(fromBase64(bundle.photos[hash]))!==hash)throw Error("Missing or changed photo: "+hash);
     }
-    $("verifyResult").textContent="Bundle matches its included digests. External authenticity requires a trusted published digest.";
+    $("verifyResult").textContent="Bundle matches its included digests. "+(bundle.format==="nirikshan-demo-v2"?(trusted?"Signature matches trusted fingerprint.":"Signature valid for included key; independently confirm fingerprint "+bundle.fingerprint+"."):"Legacy unsigned bundle.");
   }catch(err){$("verifyResult").textContent="Verification failed: "+err.message;}
 });
 async function preparePhoto(file){
@@ -155,6 +199,11 @@ $("event").addEventListener("submit",async e=>{
   try{const payload={project:kind==="sanction"?$("projectId").value.trim():$("project").value,kind,title:$("title").value.trim(),detail:$("detail").value,amountPaise:$("amountLabel").hidden?0:Math.round(Number(amount||0)*100),ref:$("refLabel").hidden?"":$("ref").value};
     if(!$("evidenceFields").hidden)Object.assign(payload,locationEvidence,await preparePhoto($("photo").files[0]));
     payload.source=$("source").value.trim();
+    if(kind==="quality_test"){
+      const limit=$("testLimit").value.trim(),value=$("testValue").value.trim();
+      if(!/^\d+(\.\d{1,3})?$/.test(limit)||!/^\d+(\.\d{1,3})?$/.test(value))throw Error("Enter valid test measurements.");
+      Object.assign(payload,{sample:$("sample").value.trim(),testUnit:$("testUnit").value.trim(),testRule:$("testRule").value,testLimitMilli:Math.round(Number(limit)*1000),testValueMilli:Math.round(Number(value)*1000)});
+    }
     if(kind==="sanction")for(const field of ["state","district","category","startPoint","endPoint","startDate","endDate"])payload[field]=$(field).value.trim();
     if(kind==="progress")payload.progress=Number($("progressValue").value);
     if(!$("quantityFields").hidden){
@@ -165,6 +214,6 @@ $("event").addEventListener("submit",async e=>{
       }
     }
     if(!pending||JSON.stringify(pending.payload)!==JSON.stringify(payload))pending={payload,id:crypto.randomUUID()};
-    const r=await fetch("./api/demo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload,id:pending.id})}),data=await r.json();if(!r.ok)throw Error(data.error);pending=null;$("result").textContent="Saved · receipt "+data.id;for(const field of ["title","detail","amount","photo","invoice","unit","quantity","rate","source"])$(field).value="";$("clearLocation").click();await refresh();$("project").value=data.project;render();}catch(err){$("result").textContent=err.message;}finally{$("save").disabled=false;}
+    const r=await fetch("./api/demo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload,id:pending.id})}),data=await r.json();if(!r.ok)throw Error(data.error);pending=null;$("result").textContent="Saved · receipt "+data.id;for(const field of ["title","detail","amount","photo","invoice","unit","quantity","rate","source","sample","testUnit","testLimit","testValue"])$(field).value="";$("clearLocation").click();await refresh();$("project").value=data.project;render();}catch(err){$("result").textContent=err.message;}finally{$("save").disabled=false;}
 });
 refresh();setInterval(refresh,3000);

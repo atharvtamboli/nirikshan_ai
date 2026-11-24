@@ -52,6 +52,11 @@ type demoEvent struct {
 	EndDate       string  `json:"endDate,omitempty"`
 	Progress      int     `json:"progress,omitempty"`
 	Source        string  `json:"source,omitempty"`
+	TestUnit      string  `json:"testUnit,omitempty"`
+	TestLimit     int64   `json:"testLimitMilli,omitempty"`
+	TestValue     int64   `json:"testValueMilli,omitempty"`
+	TestRule      string  `json:"testRule,omitempty"`
+	Sample        string  `json:"sample,omitempty"`
 }
 
 var stages = []string{"sanction", "tender", "award", "work_order", "construction", "inspection", "completion", "maintenance"}
@@ -105,6 +110,13 @@ func validateDemo(events []demoEvent, e demoEvent) error {
 		if len(e.Source) > 2048 || err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
 			return fmt.Errorf("source must be an HTTPS document link")
 		}
+	}
+	if e.Kind == "quality_test" {
+		if e.TestUnit == "" || len(e.TestUnit) > 32 || strings.TrimSpace(e.Sample) == "" || len(e.Sample) > 120 || (e.TestRule != "minimum" && e.TestRule != "maximum") || e.TestLimit < 0 || e.TestLimit > 1000000000 || e.TestValue < 0 || e.TestValue > 1000000000 || (e.Source == "" && strings.TrimSpace(e.Detail) == "") {
+			return fmt.Errorf("enter sample, test unit, limit, measured result and supporting test details")
+		}
+	} else if e.TestUnit != "" || e.TestLimit != 0 || e.TestValue != 0 || e.TestRule != "" || e.Sample != "" {
+		return fmt.Errorf("quality fields belong to a test result")
 	}
 	if e.State != "" || e.District != "" || e.Category != "" || e.StartPoint != "" || e.EndPoint != "" || e.StartDate != "" || e.EndDate != "" {
 		if e.Kind != "sanction" || len(e.State) > 100 || len(e.District) > 100 || len(e.Category) > 80 || len(e.StartPoint) > 160 || len(e.EndPoint) > 160 {
@@ -190,6 +202,10 @@ func validateDemo(events []demoEvent, e demoEvent) error {
 		}
 	}
 	switch e.Kind {
+	case "quality_test":
+		if current >= 4 && referenced.Kind == "work_item" {
+			return nil
+		}
 	case "bid":
 		if current == 1 && e.Amount > 0 {
 			return nil
@@ -321,6 +337,15 @@ func registerDemo(mux *http.ServeMux, dir string) {
 		}
 		switch r.Method {
 		case http.MethodGet:
+			if project := r.URL.Query().Get("snapshot"); project != "" {
+				snapshot, err := signDemoSnapshot(dir, project, events)
+				if err != nil {
+					fail(w, 503, "Could not sign project snapshot")
+					return
+				}
+				reply(w, 200, snapshot)
+				return
+			}
 			reply(w, 200, events)
 		case http.MethodPost:
 			var e demoEvent

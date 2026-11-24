@@ -61,6 +61,12 @@ The project tracker supports searchable state, district and category fields, pla
 
 The local demo runs without paid services. Its workflow is fictional, and the public atlas continues to use separately sourced tender notices. Real department adoption requires verified accounts, project-linked official records and an agreed grievance delivery channel.
 
+Evidence exports now include an Ed25519 signature produced using a persistent local installation key. Save the public signing fingerprint separately and paste it into the verifier when checking later bundles. Signature verification detects changes even if an editor recomputes the SHA-256 digest. Protect and back up the private key under the local data directory; the key identifies this installation and does not represent a government endorsement or an external blockchain timestamp.
+
+The engineer desk records measured test results, sample references, units and minimum or maximum acceptance criteria against a contract work item. The dashboard compares these measurements to the entered criterion and shows both the source and result.
+
+The [records request builder](web/records-request.html) uses the five sourced tender records to prepare editable Hindi or English requests for missing sanctions, work orders, bills, payments, inspections and progress records. It generates a downloadable draft locally.
+
 1. Search for Boramcha. Open the official source beside its advertised amount. Inspect the missing award and payment fields.
 2. Open the bill worksheet. For a hypothetical line, use 12.5 billed units, 10 measured units, a ₹40 contract rate and ₹510 printed subtotal. The differences are ₹10 against the billed calculation and ₹110 against the measured calculation. Check the underlying units, approved changes and source records before drawing conclusions.
 3. In a local review session, submit an evidence link. Copy the receipt and confirm the entry awaits review. Open the reviewer desk, inspect the original, enter a reason, then accept or reject.

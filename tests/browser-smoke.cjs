@@ -13,12 +13,12 @@ async function port() {
   await new Promise(resolve => socket.close(resolve));
   return result;
 }
-async function poll(check) {
+async function poll(check, label="local application or browser") {
   for (let i=0;i<80;i++) {
     try { const value=await check(); if(value)return value; } catch {}
     await wait(150);
   }
-  throw Error('Timed out waiting for local application or browser');
+  throw Error('Timed out waiting for '+label);
 }
 (async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'nirikshan-browser-'));
@@ -27,11 +27,11 @@ async function poll(check) {
   const server=spawn(path.join(project,'bin','nirikshan.exe'),[],{cwd:project,env:{...process.env,PORT:String(p),DATA_DIR:path.join(dir,'data'),NIRIKSHAN_DEMO:'1'},windowsHide:true,stdio:'ignore'});
   let browser, ws;
   try {
-    await poll(async()=> (await fetch(base+'/healthz')).ok);
+    await poll(async()=> (await fetch(base+'/healthz')).ok,"health check");
     browser=spawn(process.env.NIRIKSHAN_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',[
       '--headless=new','--disable-gpu','--no-first-run','--disable-extensions','--disable-background-networking','--remote-debugging-port='+debug,'--user-data-dir='+path.join(dir,'browser'),base+'/lifecycle.html'
     ],{windowsHide:true,stdio:'ignore'});
-    const target=await poll(async()=> (await (await fetch('http://127.0.0.1:'+debug+'/json/list')).json()).find(t=>t.type==='page'));
+    const target=await poll(async()=> (await (await fetch('http://127.0.0.1:'+debug+'/json/list')).json()).find(t=>t.type==='page'&&t.url.includes('/lifecycle.html')),"browser startup");
     ws=new WebSocket(target.webSocketDebuggerUrl);
     await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=reject;});
     let id=0;
@@ -43,8 +43,13 @@ async function poll(check) {
       ws.send(JSON.stringify({id:key,method,params}));
     });
     async function query(expression){const result=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(result.exceptionDetails)throw Error(JSON.stringify(result.exceptionDetails));return result.result.value;}
-    await poll(()=>query("document.getElementById('name')?.textContent.includes('Aravalli')"));
+    // Edge can expose the page target before committing its initial navigation.
+    await query("location.href='"+base+"/lifecycle.html';true").catch(()=>{});
+    try{await poll(()=>query("document.getElementById('name')?.textContent.includes('Aravalli')"),"project render");}
+    catch(error){throw Error(error.message+"; "+await query("document.body?.innerText.slice(0,800)"));}
     assert.match(await query("document.getElementById('riskSummary').innerText"),/awaiting certification/);
+    await query("document.getElementById('role').value='engineer';document.getElementById('role').dispatchEvent(new Event('change'));document.getElementById('kind').value='quality_test';document.getElementById('kind').dispatchEvent(new Event('change'));Object.entries({title:'Concrete test',detail:'Illustrative lab report',sample:'Q-17',testUnit:'MPa',testLimit:'30',testValue:'28'}).forEach(([id,value])=>document.getElementById(id).value=value);document.getElementById('event').requestSubmit()");
+    await poll(()=>query("document.getElementById('qualityResults').innerText.includes('Outside recorded criterion')"),"quality test result");
     await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
     assert.equal(await query("document.documentElement.scrollWidth <= innerWidth"),true);
     await query("document.getElementById('role').value='citizen';document.getElementById('role').dispatchEvent(new Event('change'));document.getElementById('title').value='Browser inspection report';document.getElementById('detail').value='Approach road needs attention'");
@@ -52,23 +57,30 @@ async function poll(check) {
     const photo=(await call('DOM.querySelector',{nodeId:root,selector:'#photo'})).nodeId;
     await call('DOM.setFileInputFiles',{nodeId:photo,files:[path.join(project,'web','icon-192.png')]});
     await query("document.getElementById('event').requestSubmit()");
-    await poll(()=>query("document.getElementById('reports').innerText.includes('Browser inspection report')"));
-    await poll(()=>query("document.querySelector('#reports img')?.complete && document.querySelector('#reports img')?.naturalWidth>0"));
+    await poll(()=>query("document.getElementById('reports').innerText.includes('Browser inspection report')"),"report submission");
+    await poll(()=>query("document.querySelector('#reports img')?.complete && document.querySelector('#reports img')?.naturalWidth>0"),"photo render");
     await query("document.getElementById('role').value='government';document.getElementById('role').dispatchEvent(new Event('change'));document.getElementById('kind').value='acknowledge';document.getElementById('kind').dispatchEvent(new Event('change'));document.getElementById('title').value='Inspection scheduled';document.getElementById('event').requestSubmit()");
-    await poll(()=>query("document.getElementById('reports').innerText.includes('Acknowledged')"));
+    await poll(()=>query("document.getElementById('reports').innerText.includes('Acknowledged')"),"department acknowledgement");
     await call('Page.setDownloadBehavior',{behavior:'allow',downloadPath:dir});
     await query("document.getElementById('export').click()");
     const bundle=path.join(dir,'nirikshan-demo-evidence.json');
-    await poll(()=>fs.existsSync(bundle));
+    await poll(()=>fs.existsSync(bundle),"signed bundle download");
     const verify=(await call('DOM.querySelector',{nodeId:root,selector:'#verifyFile'})).nodeId;
+    const original=JSON.parse(fs.readFileSync(bundle,'utf8'));
+    assert.equal(original.format,'nirikshan-demo-v2');
+    await query("document.getElementById('trustedKey').value="+JSON.stringify(original.fingerprint));
     await call('DOM.setFileInputFiles',{nodeId:verify,files:[bundle]});
-    await poll(()=>query("document.getElementById('verifyResult').innerText.includes('matches its included digests')"));
+    await poll(()=>query("document.getElementById('verifyResult').innerText.includes('Signature matches trusted fingerprint')"),"signature verification");
     const changed=path.join(dir,'changed.json'), altered=JSON.parse(fs.readFileSync(bundle,'utf8'));
-    altered.payload+=' ';fs.writeFileSync(changed,JSON.stringify(altered));
+    altered.payload+=' ';altered.digest=require('node:crypto').createHash('sha256').update(altered.payload).digest('hex');fs.writeFileSync(changed,JSON.stringify(altered));
     await call('DOM.setFileInputFiles',{nodeId:verify,files:[changed]});
-    await poll(()=>query("document.getElementById('verifyResult').innerText.includes('Verification failed')"));
+    await poll(()=>query("document.getElementById('verifyResult').innerText.includes('Verification failed')"),"tamper rejection");
     await call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
     assert.equal(await query("document.documentElement.scrollWidth <= innerWidth"),true);
-    console.log('PASS: Mobile and desktop layout, photo report, acknowledgement, evidence export and tamper detection');
+    await query("location.href='"+base+"/records-request.html';true");
+    await poll(()=>query("document.getElementById('requestDraft')?.value.includes('2026_CEPWD_566165_4')"),"records request draft");
+    await query("document.getElementById('requestLanguage').value='hi';document.getElementById('requestLanguage').dispatchEvent(new Event('change'))");
+    assert.match(await query("document.getElementById('requestDraft').value"),/निविदा आईडी/);
+    console.log('PASS: Mobile and desktop layout, quality measurement, photo report, acknowledgement, signed evidence and bilingual records request');
   } finally { if(ws)ws.close();if(browser)browser.kill();server.kill(); }
 })().catch(error=>{console.error(error.message);process.exitCode=1;});
