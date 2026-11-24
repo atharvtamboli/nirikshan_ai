@@ -148,3 +148,5 @@ The repository includes a hosting blueprint for a later deployment. Local use do
 **Made for India. Built around evidence.**
 
 </div>
+
+[Pilot release readiness and deployment gates](docs/RELEASE_READINESS.md)
