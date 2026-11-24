@@ -1,42 +1,71 @@
-# Nirikshan · Public Works Atlas
-
 <div align="center">
-  <img src="web/icon-192.png" width="96" alt="Nirikshan logo">
-  <h2>Public Works Atlas for India</h2>
-  <p>Follow public money from tender to evidence.</p>
+<img src="web/icon-192.png" alt="Nirikshan logo" width="94">
+
+# NIRIKSHAN AI · निरीक्षण
+
+### A step toward a corruption-free India.
+
+**Public infrastructure. Public money. Public evidence.**
+
+[![Pilot checks](https://github.com/atharvtamboli/nirikshan_ai/actions/workflows/pilot.yml/badge.svg)](https://github.com/atharvtamboli/nirikshan_ai/actions/workflows/pilot.yml)
+![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white)
+![Runs locally](https://img.shields.io/badge/Local%20demo-Ready-24694F)
+![Paid services](https://img.shields.io/badge/Paid%20services-None-24694F)
+
+[Run the demo](#quick-start) · [Watch the workflow](docs/DEMO.md) · [Data provenance](DATA.md) · [Architecture](#architecture)
+
 </div>
 
-[![Pilot checks](https://github.com/atharvtamboli/nirikshan_ai/actions/workflows/pilot.yml/badge.svg)](https://github.com/atharvtamboli/nirikshan_ai/actions/workflows/pilot.yml) ![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go) ![Status](https://img.shields.io/badge/status-local%20pilot-176B50)
+---
 
-[Quick start](#run-on-windows-linux-or-macos) · [Data sources](DATA.md) · [Service guide](cmd/pilot/README.md)
+## The idea
 
-Follow a Rajasthan bridge tender from the advertised price to the documents available for public inspection. The pilot covers five Udaipur works. Find a bridge in Hindi or English, inspect the official tender, and compare a bill line with a measurement-book entry.
+Imagine a resident standing at a bridge construction site. One project link lets them see the sanctioned amount, tender, contractor quotation, work order, material bills, certified measurements, payments, inspections and citizen reports. Every recorded claim has a place in the project timeline.
 
-| Explore | Investigate | Review |
-| --- | --- | --- |
-| Five sourced bridge tenders, search and shareable links | Compare bill quantities, measurements and contract rates | Submit news or records, review evidence and publish decisions |
-| Hindi and English, mobile layout and offline catalog | Source links and explicit record availability | Persistent event history and receipt tracking |
+Nirikshan brings that workflow together in a working local civic-tech demonstration, designed for citizens, public works departments, engineers, contractors and independent reviewers.
 
-## Architecture
+## See it in action
 
-```mermaid
-flowchart LR
-    A[Citizen atlas] --> B[Go API]
-    C[Reviewer desk] --> B
-    D[Bill worksheet] --> A
-    B --> E[Project catalog]
-    B --> F[Persistent evidence ledger]
-```
+![Nirikshan public atlas](docs/screenshots/public-atlas.jpg)
 
-## Run on Windows, Linux or macOS
+![Project lifecycle tracker](docs/screenshots/project-tracker.jpg)
 
-With Go 1.24.1 or newer installed, open a terminal in this directory.
+## What is built
+
+| Public accountability | Working capabilities |
+| --- | --- |
+| **Project atlas** | Five sourced Udaipur tenders, official tender links, Hindi and English, QR sharing and offline catalog |
+| **Project lifecycle** | Sanction → tender → bid → award → work order → construction → inspection → completion → maintenance |
+| **Follow the money** | Integer-paise budgets and payments, contract work items, delivery records, quantities, rates, invoices, variations and certified measurements |
+| **Financial review** | Arithmetic discrepancies, repeated invoice references, quantities above approved scope, unverified billing and payment-versus-progress signals |
+| **Quality evidence** | Sample references, measured results, acceptance criteria and contextual source links |
+| **Citizen voice** | Photo and optional approximate device location, duplicate image digest, report receipts, acknowledgement, resolution and reopening |
+| **Department workflows** | Interactive local government, contractor and engineer desks with validation, persistence and updates across tabs |
+| **Independent verification** | Ed25519-signed project snapshots, photo digests, downloadable evidence and browser/CLI verification |
+| **Request missing records** | Downloadable Hindi or English record-request drafts using actual tender IDs and issuing authorities |
+
+## Quick start
+
+Requirements: **Go 1.24.1+** and a modern browser. The demo uses the Go standard library and static assets with no external service keys.
 
 ```sh
-go run .
+git clone https://github.com/atharvtamboli/nirikshan_ai.git
+cd nirikshan_ai
+go run . -demo
 ```
 
-Open **http://localhost:8080**. The new service builds with the Go standard library. Public browsing works immediately. For a local review session on Windows, start the service with the following PowerShell commands. The second line copies a fresh private token to your clipboard for the reviewer page. Clear the clipboard after unlocking.
+Open **http://localhost:8080** or go directly to **http://localhost:8080/lifecycle.html**.
+
+The local demo starts with a fictional bridge under construction and a fictional school that has reached maintenance. Create a new project or continue either scenario. All changes are stored under `data/`, which is excluded from version control. See [the demo walkthrough](docs/DEMO.md) for a complete presentation.
+
+For a fresh named demonstration session on Windows, set a different data directory before starting the app.
+
+```powershell
+$env:DATA_DIR = "data/showcase"
+go run . -demo
+```
+
+To run the source-backed public atlas without changing fictional records, use `go run .`. Enable the evidence reviewer on localhost with a private token.
 
 ```powershell
 $env:REVIEW_TOKEN = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
@@ -44,47 +73,46 @@ Set-Clipboard $env:REVIEW_TOKEN
 go run .
 ```
 
-## Try one complete workflow
+## Architecture
 
-For the interactive lifecycle demonstration, start the service in PowerShell:
-
-```powershell
-$env:NIRIKSHAN_DEMO = "1"
-go run .
+```mermaid
+flowchart TD
+    A["Public atlas and citizen reports"] --> B["Go HTTP API"]
+    C["Department, contractor and engineer desks"] --> B
+    B --> D["Validated project events"]
+    B --> E["Source-backed tender catalog"]
+    D --> F["Local event and photo storage"]
+    F --> G["Signed evidence export"]
+    G --> H["Independent browser / CLI verification"]
 ```
 
-Open http://localhost:8080/lifecycle.html. The Aravalli bridge is fictional. The demonstration desks record sanctions, tenders, bids, awards, work orders, construction, delivery records, bills, certifications, payments, inspections and citizen reports. Updates persist locally and refresh across open tabs. Demo writes require an explicit local opt-in.
+| Directory | Responsibility |
+| --- | --- |
+| `web/` | Responsive public atlas, project tracker, reporting, review and verification |
+| `internal/pilot/` | Project validation, persistent event stores, signatures and evidence moderation |
+| `cmd/verify/` | Standalone evidence verification |
+| `tests/` | Bill arithmetic and browser journey |
+| `docs/` | Demo walkthrough and product screenshots |
+| `legacy/` | Original hackathon blockchain prototype |
 
-Citizen reports support optional photo uploads and approximate device location. The service strips image metadata, hashes the cleaned photo and flags matching images. A report can be acknowledged, resolved and reopened. The department desk is a local simulation. Structured bill entries support invoice references, quantities and rates, with arithmetic and duplicate-reference flags. Export a project evidence bundle with its photos and verify its included SHA-256 digests locally.
+## Verify an evidence bundle
 
-The project tracker supports searchable state, district and category fields, planned dates, illustrative route endpoints and contractor-reported physical progress. Awards reference recorded quotations. Contract work items and approved quantity increases can be linked to bills, which are then certified against their recorded rate and remaining quantity. News links may be attached for review. The financial signals are deterministic comparisons of recorded figures.
+Export the selected fictional project from its tracker. The application signs the snapshot with a persistent Ed25519 installation key. Verify the exported file in the browser or independently at the terminal.
 
-The local demo runs without paid services. Its workflow is fictional, and the public atlas continues to use separately sourced tender notices. Real department adoption requires verified accounts, project-linked official records and an agreed grievance delivery channel.
+```sh
+go run ./cmd/verify nirikshan-demo-evidence.json
+go run ./cmd/verify -fingerprint YOUR_TRUSTED_FINGERPRINT nirikshan-demo-evidence.json
+```
 
-Evidence exports now include an Ed25519 signature produced using a persistent local installation key. Save the public signing fingerprint separately and paste it into the verifier when checking later bundles. Signature verification detects changes even if an editor recomputes the SHA-256 digest. Protect and back up the private key under the local data directory; the key identifies this installation and does not represent a government endorsement or an external blockchain timestamp.
+Save the signing fingerprint separately when establishing the signer identity. Changes to the signed payload or referenced images cause verification to fail. A local signature identifies the installation; it does not establish government endorsement.
 
-The engineer desk records measured test results, sample references, units and minimum or maximum acceptance criteria against a contract work item. The dashboard compares these measurements to the entered criterion and shows both the source and result.
+## Evidence and data integrity
 
-The [records request builder](web/records-request.html) uses the five sourced tender records to prepare editable Hindi or English requests for missing sanctions, work orders, bills, payments, inspections and progress records. It generates a downloadable draft locally.
+The public atlas uses five real Rajasthan tender notices. The fictional projects demonstrate operational workflows and retain their labels. Advertised estimates, awarded amounts, certified bills and payments are different records. A review signal invites examination of the underlying evidence, and engineering findings require qualified review. Optional approximate device location and photo digests support review without authenticating a physical observation.
 
-1. Search for Boramcha. Open the official source beside its advertised amount. Inspect the missing award and payment fields.
-2. Open the bill worksheet. For a hypothetical line, use 12.5 billed units, 10 measured units, a ₹40 contract rate and ₹510 printed subtotal. The differences are ₹10 against the billed calculation and ₹110 against the measured calculation. Check the underlying units, approved changes and source records before drawing conclusions.
-3. In a local review session, submit an evidence link. Copy the receipt and confirm the entry awaits review. Open the reviewer desk, inspect the original, enter a reason, then accept or reject.
-4. Reload the bridge. Approved evidence becomes public. Restart the service using the same data directory and check the record again.
+[Data source inventory](DATA.md) · [Service operations](cmd/pilot/README.md)
 
-## How evidence works
-
-Every project has an official source and tender ID. The evidence workflow accepts bills, awards, payments, inspections, news and observations. News is attributable context. Published review checks compare structured entries with linked references. A flag invites inspection of the source. The pilot does not certify engineering quality or establish wrongdoing.
-
-The five-project source audit and coverage decision are in [DATA.md](DATA.md). [Service operations](cmd/pilot/README.md) describes persistence, reviewer credentials and integrity limits. Root and cmd/pilot launch the same server. The original single-node blockchain prototype is preserved under legacy/ with its own module and README. Legacy routes remain available only by launching that prototype separately.
-
-## Deploy
-
-Use the repository's render.yaml Blueprint for one native Go service with a persistent disk. Select the branch containing this rebuild. Review the quoted service and disk charges in the hosting account before provisioning. Keep one writer instance. Retrieve the generated REVIEW_TOKEN through the hosting account and share it privately with the designated pilot reviewer. Use the hosted HTTPS address for public links.
-
-After deployment, check /healthz, open a project on a second device and verify a reviewed record survives redeployment. Back up DATA_DIR off-host and rehearse restoring a copy with the same catalog. The static web/ directory can also be served separately for read-only exploration.
-
-## Checks
+## Test the project
 
 ```sh
 go vet ./...
@@ -92,11 +120,25 @@ go test ./...
 node --test tests/worksheet.test.cjs
 ```
 
-On Windows with Edge and a recent Node.js installed, run the end-to-end browser check:
+On Windows with Edge and recent Node.js:
 
 ```powershell
 go build -o bin/nirikshan.exe .
 node tests/browser-smoke.cjs
 ```
 
-Department use requires named reviewer accounts, operational monitoring, moderation ownership and independently backed-up records. This release uses a single-instance event store. Live news scraping, automatic document OCR and independent blockchain anchoring are outside this implementation.
+The browser journey checks mobile/desktop layout, recorded quality measurements, citizen photo reports, department acknowledgement, signed exports, altered-bundle rejection and the bilingual records request.
+
+## From demo to national pilot
+
+The current release runs locally and supports the complete illustrated project workflow. A real departmental pilot requires verified officer accounts, official project records, data-sharing and grievance routing arrangements, production storage, backups and moderation ownership. Automated OCR, external news ingestion and independently anchored blockchain receipts remain future work.
+
+The repository includes a hosting blueprint for a later deployment. Local use does not require hosting services.
+
+---
+
+<div align="center">
+
+**Made for India. Built around evidence.**
+
+</div>

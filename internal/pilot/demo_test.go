@@ -11,6 +11,21 @@ import (
 	"testing"
 )
 
+func TestDemoSeed(t *testing.T) {
+	var history []demoEvent
+	ids := map[string]bool{}
+	for _, event := range demoSeed() {
+		if ids[event.ID] {
+			t.Fatalf("duplicate seed event %s", event.ID)
+		}
+		if err := validateDemo(history, event); err != nil {
+			t.Fatalf("invalid seed event %s: %v", event.ID, err)
+		}
+		ids[event.ID] = true
+		history = append(history, event)
+	}
+}
+
 func TestDemoLifecycle(t *testing.T) {
 	t.Setenv("NIRIKSHAN_DEMO", "1")
 	dir := t.TempDir()

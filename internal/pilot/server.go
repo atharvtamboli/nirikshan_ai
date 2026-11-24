@@ -330,6 +330,11 @@ func env(k, v string) string {
 	return v
 }
 func Run() {
+	if len(os.Args) == 2 && os.Args[1] == "-demo" {
+		if err := os.Setenv("NIRIKSHAN_DEMO", "1"); err != nil {
+			log.Fatal(err)
+		}
+	}
 	web := env("WEB_DIR", "web")
 	data, err := os.ReadFile(filepath.Join(web, "projects.json"))
 	if err != nil {
@@ -350,7 +355,14 @@ func Run() {
 		}
 		a.ids[p.ID] = true
 	}
-	srv := &http.Server{Addr: ":" + env("PORT", "8080"), Handler: a.routes(web), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
+	address := ":" + env("PORT", "8080")
+	if os.Getenv("NIRIKSHAN_DEMO") == "1" {
+		address = "127.0.0.1" + address
+	}
+	srv := &http.Server{Addr: address, Handler: a.routes(web), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	log.Printf("Nirikshan listening on %s", srv.Addr)
+	if os.Getenv("NIRIKSHAN_DEMO") == "1" {
+		log.Printf("Open http://localhost:%s/lifecycle.html for the interactive demo", env("PORT", "8080"))
+	}
 	log.Fatal(srv.ListenAndServe())
 }

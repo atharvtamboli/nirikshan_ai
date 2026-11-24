@@ -1,8 +1,10 @@
 package pilot
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/json"
 	"testing"
 )
 
@@ -35,5 +37,19 @@ func TestSignedSnapshot(t *testing.T) {
 	}
 	if _, err := signDemoSnapshot(dir, "missing", demoSeed()); err == nil {
 		t.Fatal("unknown project signed")
+	}
+	bundle, err := json.Marshal(struct {
+		signedSnapshot
+		Photos map[string]string `json:"photos"`
+	}{first, map[string]string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := VerifyEvidence(bytes.NewReader(bundle), first.Fingerprint)
+	if err != nil || !result.Trusted || result.Project != "demo-bridge" {
+		t.Fatalf("offline verification: %+v, %v", result, err)
+	}
+	if _, err := VerifyEvidence(bytes.NewReader(bundle), "wrong-fingerprint"); err == nil {
+		t.Fatal("wrong fingerprint accepted")
 	}
 }

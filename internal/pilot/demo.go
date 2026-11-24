@@ -92,6 +92,33 @@ func demoSeed() []demoEvent {
 	events[8].RatePaise = 600000
 	item := demoEvent{ID: "seed-item", Project: "demo-bridge", Kind: "work_item", Title: "Pier 2 concrete", Detail: "Illustrative bill of quantities", Unit: "m3", QuantityMilli: 120000, RatePaise: 600000, Amount: 72000000, Time: "2026-11-12T09:00:00Z"}
 	events = append(append(append([]demoEvent{}, events[:5]...), item), events[5:]...)
+	events = append(events,
+		demoEvent{ID: "seed-progress", Project: "demo-bridge", Kind: "progress", Title: "Foundation milestone update", Detail: "Fictional contractor-reported progress; approach road still pending.", Progress: 35, Time: "2026-11-20T09:00:00Z"},
+		demoEvent{ID: "seed-quality", Project: "demo-bridge", Kind: "quality_test", Title: "Pier 2 concrete strength", Detail: "Illustrative laboratory sheet LAB-DEMO-17; follow-up measurement requested.", Ref: "seed-item", Sample: "LAB-DEMO-17", TestUnit: "MPa", TestRule: "minimum", TestLimit: 30000, TestValue: 28000, Time: "2026-11-21T09:00:00Z"},
+		demoEvent{ID: "seed-report", Project: "demo-bridge", Kind: "report", Title: "Unfinished approach road", Detail: "Fictional resident observation: uneven approach surface needs inspection.", Time: "2026-11-22T09:00:00Z"},
+	)
+	// A completed fictional school project makes the entire lifecycle available at first launch.
+	school := []demoEvent{
+		{ID: "school-sanction", Kind: "sanction", Title: "Aravalli school renewal", Detail: "Fictional renovation of a rural school building.", Amount: 2500000000, State: "Rajasthan", District: "Udaipur", Category: "School", StartPoint: "School entrance", EndPoint: "Classroom wing", StartDate: "2026-01-12", EndDate: "2026-09-30"},
+		{ID: "school-tender", Kind: "tender", Title: "School renewal tender", Amount: 2450000000},
+		{ID: "school-bid", Kind: "bid", Title: "Illustrative contractor B", Amount: 2400000000},
+		{ID: "school-award", Kind: "award", Title: "Contract award", Amount: 2400000000, Ref: "school-bid"},
+		{ID: "school-order", Kind: "work_order", Title: "Work order and classroom schedule"},
+		{ID: "school-start", Kind: "construction", Title: "Classroom renovation started"},
+		{ID: "school-item", Kind: "work_item", Title: "Renovation package", Unit: "package", QuantityMilli: 1000, RatePaise: 1000000000, Amount: 1000000000},
+		{ID: "school-bill", Kind: "bill", Title: "Renovation package bill", Ref: "school-item", Invoice: "SCHOOL-DEMO-01", Unit: "package", QuantityMilli: 1000, RatePaise: 1000000000, Amount: 1000000000},
+		{ID: "school-cert", Kind: "certificate", Title: "Accepted package measurement", Ref: "school-bill", Unit: "package", QuantityMilli: 1000, RatePaise: 1000000000, Amount: 1000000000},
+		{ID: "school-payment", Kind: "payment", Title: "Package payment recorded", Ref: "school-bill", Amount: 1000000000},
+		{ID: "school-progress", Kind: "progress", Title: "All scheduled physical works reported complete", Progress: 100},
+		{ID: "school-inspect", Kind: "inspection", Title: "Completion inspection recorded", Detail: "Illustrative inspection record"},
+		{ID: "school-complete", Kind: "completion", Title: "School handed over"},
+		{ID: "school-maintain", Kind: "maintenance", Title: "Maintenance period started", Detail: "Illustrative maintenance record; remaining contract payment documents unlisted."},
+	}
+	for i, event := range school {
+		event.Project = "demo-school"
+		event.Time = time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC).AddDate(0, 0, i*20).Format(time.RFC3339)
+		events = append(events, event)
+	}
 	return events
 }
 
@@ -330,6 +357,16 @@ func registerDemo(mux *http.ServeMux, dir string) {
 			if json.Unmarshal(b, &events) != nil {
 				fail(w, 500, "Demo history is unreadable")
 				return
+			}
+			// Introduce new fictional sample projects without rewriting an existing project's history.
+			existingProjects := map[string]bool{}
+			for _, event := range events {
+				existingProjects[event.Project] = true
+			}
+			for _, event := range demoSeed() {
+				if !existingProjects[event.Project] {
+					events = append(events, event)
+				}
 			}
 		} else if !os.IsNotExist(err) {
 			fail(w, 500, "Demo history is unavailable")

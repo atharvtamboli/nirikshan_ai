@@ -24,7 +24,7 @@ async function poll(check, label="local application or browser") {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'nirikshan-browser-'));
   const project=path.resolve(__dirname,'..');
   const p=await port(), debug=await port(), base='http://127.0.0.1:'+p;
-  const server=spawn(path.join(project,'bin','nirikshan.exe'),[],{cwd:project,env:{...process.env,PORT:String(p),DATA_DIR:path.join(dir,'data'),NIRIKSHAN_DEMO:'1'},windowsHide:true,stdio:'ignore'});
+  const server=spawn(path.join(project,'bin','nirikshan.exe'),['-demo'],{cwd:project,env:{...process.env,PORT:String(p),DATA_DIR:path.join(dir,'data'),NIRIKSHAN_DEMO:''},windowsHide:true,stdio:'ignore'});
   let browser, ws;
   try {
     await poll(async()=> (await fetch(base+'/healthz')).ok,"health check");
@@ -43,13 +43,28 @@ async function poll(check, label="local application or browser") {
       ws.send(JSON.stringify({id:key,method,params}));
     });
     async function query(expression){const result=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(result.exceptionDetails)throw Error(JSON.stringify(result.exceptionDetails));return result.result.value;}
+    async function screenshot(name) {
+      if(process.env.NIRIKSHAN_SCREENSHOTS!=='1')return;
+      const destination=path.join(project,'docs','screenshots');
+      fs.mkdirSync(destination,{recursive:true});
+      const result=await call('Page.captureScreenshot',{format:'jpeg',quality:83,captureBeyondViewport:false});
+      fs.writeFileSync(path.join(destination,name+'.jpg'),Buffer.from(result.data,'base64'));
+    }
     // Edge can expose the page target before committing its initial navigation.
-    await query("location.href='"+base+"/lifecycle.html';true").catch(()=>{});
     try{await poll(()=>query("document.getElementById('name')?.textContent.includes('Aravalli')"),"project render");}
-    catch(error){throw Error(error.message+"; "+await query("document.body?.innerText.slice(0,800)"));}
+    catch {
+      await call('Page.navigate',{url:base+'/lifecycle.html'}).catch(()=>{});
+      await poll(()=>query("document.getElementById('name')?.textContent.includes('Aravalli')"),"project render after retry");
+    }
     assert.match(await query("document.getElementById('riskSummary').innerText"),/awaiting certification/);
+    await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1050,deviceScaleFactor:1,mobile:false});
+    await query("window.scrollTo(0,document.querySelector('.project-banner').offsetTop-70);true");
+    await screenshot('project-tracker');
+    await query("document.getElementById('project').value='demo-school';document.getElementById('project').dispatchEvent(new Event('change'))");
+    assert.match(await query("document.getElementById('current').innerText"),/Maintenance/);
+    await query("document.getElementById('project').value='demo-bridge';document.getElementById('project').dispatchEvent(new Event('change'))");
     await query("document.getElementById('role').value='engineer';document.getElementById('role').dispatchEvent(new Event('change'));document.getElementById('kind').value='quality_test';document.getElementById('kind').dispatchEvent(new Event('change'));Object.entries({title:'Concrete test',detail:'Illustrative lab report',sample:'Q-17',testUnit:'MPa',testLimit:'30',testValue:'28'}).forEach(([id,value])=>document.getElementById(id).value=value);document.getElementById('event').requestSubmit()");
-    await poll(()=>query("document.getElementById('qualityResults').innerText.includes('Outside recorded criterion')"),"quality test result");
+    await poll(()=>query("document.getElementById('qualityResults').innerText.includes('Q-17')"),"quality test result");
     await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
     assert.equal(await query("document.documentElement.scrollWidth <= innerWidth"),true);
     await query("document.getElementById('role').value='citizen';document.getElementById('role').dispatchEvent(new Event('change'));document.getElementById('title').value='Browser inspection report';document.getElementById('detail').value='Approach road needs attention'");
@@ -59,8 +74,8 @@ async function poll(check, label="local application or browser") {
     await query("document.getElementById('event').requestSubmit()");
     await poll(()=>query("document.getElementById('reports').innerText.includes('Browser inspection report')"),"report submission");
     await poll(()=>query("document.querySelector('#reports img')?.complete && document.querySelector('#reports img')?.naturalWidth>0"),"photo render");
-    await query("document.getElementById('role').value='government';document.getElementById('role').dispatchEvent(new Event('change'));document.getElementById('kind').value='acknowledge';document.getElementById('kind').dispatchEvent(new Event('change'));document.getElementById('title').value='Inspection scheduled';document.getElementById('event').requestSubmit()");
-    await poll(()=>query("document.getElementById('reports').innerText.includes('Acknowledged')"),"department acknowledgement");
+    await query("[...document.querySelectorAll('#reports > .record')].find(e=>e.innerText.includes('Browser inspection report')).querySelector('button').click();document.getElementById('title').value='Inspection scheduled';document.getElementById('event').requestSubmit()");
+    await poll(()=>query("[...document.querySelectorAll('#reports > .record')].find(e=>e.innerText.includes('Browser inspection report')).innerText.includes('Acknowledged')"),"department acknowledgement");
     await call('Page.setDownloadBehavior',{behavior:'allow',downloadPath:dir});
     await query("document.getElementById('export').click()");
     const bundle=path.join(dir,'nirikshan-demo-evidence.json');
@@ -81,6 +96,9 @@ async function poll(check, label="local application or browser") {
     await poll(()=>query("document.getElementById('requestDraft')?.value.includes('2026_CEPWD_566165_4')"),"records request draft");
     await query("document.getElementById('requestLanguage').value='hi';document.getElementById('requestLanguage').dispatchEvent(new Event('change'))");
     assert.match(await query("document.getElementById('requestDraft').value"),/निविदा आईडी/);
+    await query("location.href='"+base+"/';true");
+    await poll(()=>query("document.getElementById('detail')?.innerText.includes('Boramcha')"),"public atlas");
+    await screenshot('public-atlas');
     console.log('PASS: Mobile and desktop layout, quality measurement, photo report, acknowledgement, signed evidence and bilingual records request');
   } finally { if(ws)ws.close();if(browser)browser.kill();server.kill(); }
 })().catch(error=>{console.error(error.message);process.exitCode=1;});

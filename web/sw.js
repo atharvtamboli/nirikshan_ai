@@ -1,12 +1,12 @@
 /* Cache the public atlas only. Reviewer requests and submissions always go to the network. */
 const scope = new URL(self.registration.scope);
 const prefix = 'nirikshan-atlas-' + scope.pathname + '-';
-const version = prefix + '1';
+const version = prefix + '2';
 const relative = path => new URL(path, scope).href;
-const shell = ['./', 'index.html', 'style.css', 'app.js', 'analysis.js', 'share.js',
+const shell = ['./', 'index.html', 'style.css', 'showcase.css', 'app.js', 'analysis.js', 'share.js',
   'projects.json', 'manifest.webmanifest', 'mark.svg', 'icon-192.png', 'icon-512.png', 'vendor/qrcode.js'];
 const assets = new Set(shell.map(relative));
-const essentials = ['index.html', 'style.css', 'app.js', 'analysis.js', 'share.js', 'projects.json'];
+const essentials = ['index.html', 'style.css', 'showcase.css', 'app.js', 'analysis.js', 'share.js', 'projects.json'];
 
 self.addEventListener('install', event => event.waitUntil((async () => {
   const cache = await caches.open(version);

@@ -9,7 +9,7 @@ roles.engineer.push("quality_test");
 Object.assign(labels,{acknowledge:"Department acknowledgement",resolve:"Repair or resolution",reopen:"Report reopened",work_item:"Contract work item",variation:"Approved quantity increase",news:"News source for review"});
 labels.quality_test="Quality test result";
 let events = [], pending = null, locationEvidence = {}, locationRequest = 0, selectedStage = "";
-const money = n => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(n/100);
+const money = n => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:n%100?2:0,maximumFractionDigits:2}).format(n/100);
 function node(tag,text,cls){const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;return el;}
 function option(value,text){const el=node("option",text);el.value=value;return el;}
 function records(){return events.filter(e=>e.project===$("project").value);}
@@ -32,9 +32,12 @@ function configure(){
   if([...$("ref").options].some(o=>o.value===ref))$("ref").value=ref;
 }
 function render(){
-  const chosen=$("project").value || "demo-bridge";
+  const chosen=$("project").value || new URL(location.href).searchParams.get("project") || "demo-bridge";
   $("project").replaceChildren(...events.filter(e=>e.kind==="sanction").map(e=>option(e.project,e.title)));
   if([...$("project").options].some(o=>o.value===chosen))$("project").value=chosen;
+  const projectURL=new URL(location.href);
+  projectURL.searchParams.set("project",$("project").value);
+  history.replaceState(null,"",projectURL);
   const rows=records(), first=rows[0];
   if(!first)return;
   $("name").textContent=first.title;
@@ -89,7 +92,13 @@ function render(){
     return card;
   }));
   $("history").replaceChildren(...rows.slice().reverse().map(record));
-  $("reports").replaceChildren(...rows.filter(e=>e.kind==="report").map(e=>{const card=record(e),responses=rows.filter(x=>["response","acknowledge","resolve","reopen"].includes(x.kind)&&x.ref===e.id);const last=responses.at(-1)?.kind;card.append(node("strong",last==="resolve"?"Resolved":last==="reopen"?"Reopened":last?"Acknowledged":"Submitted · awaiting department"),...responses.map(record));return card;}));
+  $("reports").replaceChildren(...rows.filter(e=>e.kind==="report").map(e=>{
+    const card=record(e),responses=rows.filter(x=>["response","acknowledge","resolve","reopen"].includes(x.kind)&&x.ref===e.id),last=responses.at(-1)?.kind;
+    card.append(node("strong",last==="resolve"?"Resolved":last==="reopen"?"Reopened":last?"Acknowledged":"Submitted · awaiting department"),...responses.map(record));
+    const actions=node("div","","record-actions");
+    const next=last==="resolve"?["citizen","reopen","Reopen issue"]:last==="acknowledge"||last==="response"?["government","resolve","Record resolution"]:["government","acknowledge","Acknowledge report"];
+    const button=node("button",next[2]);button.type="button";button.addEventListener("click",()=>chooseAction(next[0],next[1],e.id));actions.append(button);card.append(actions);return card;
+  }));
   const reports=rows.filter(e=>e.kind==="report");
   const resolved=reports.filter(e=>rows.filter(x=>["response","acknowledge","resolve","reopen"].includes(x.kind)&&x.ref===e.id).at(-1)?.kind==="resolve").length;
   $("reportStats").textContent=reports.length+" submitted · "+(reports.length-resolved)+" open · "+resolved+" resolved";
@@ -111,19 +120,24 @@ function render(){
   configure();
   discover();
 }
-function chooseAction(role,kind){
-  $("role").value=role;$("role").dispatchEvent(new Event("change"));$("kind").value=kind;configure();$("desk").scrollIntoView({behavior:"smooth"});$("title").focus({preventScroll:true});
+function chooseAction(role,kind,reference){
+  $("role").value=role;$("role").dispatchEvent(new Event("change"));$("kind").value=kind;configure();if(reference)$("ref").value=reference;$("desk").scrollIntoView({behavior:"smooth"});$("title").focus({preventScroll:true});
 }
 $("reportNow").addEventListener("click",()=>chooseAction("citizen","report"));
+$("guideReport").addEventListener("click",()=>chooseAction("citizen","report"));
+$("copyProject").addEventListener("click",async()=>{
+  const url=new URL(location.href);url.hash="";
+  try{await navigator.clipboard.writeText(url.href);$("linkStatus").textContent="Project link copied.";}catch{$("linkStatus").textContent=url.href;}
+});
 function discover(){
   const query=$("projectSearch").value.trim().toLowerCase();
   const matches=events.filter(e=>e.kind==="sanction"&&[e.title,e.state,e.district,e.category,e.detail].join(" ").toLowerCase().includes(query));
-  $("discover").replaceChildren(...matches.map(e=>{const button=node("button",e.title+(e.district?" · "+e.district:""));button.type="button";button.addEventListener("click",()=>{$("project").value=e.project;render();$("name").scrollIntoView({behavior:"smooth",block:"center"});});return button;}));
+  $("discover").replaceChildren(...matches.map(e=>{const button=node("button",e.title+(e.district?" · "+e.district:""));button.type="button";button.addEventListener("click",()=>{$("project").value=e.project;selectedStage="";render();$("name").scrollIntoView({behavior:"smooth",block:"center"});});return button;}));
   if(!matches.length)$("discover").append(node("p","No demo projects match."));
 }
 $("projectSearch").addEventListener("input",discover);
 async function refresh(){
-  try{const r=await fetch("./api/demo",{cache:"no-store"}), data=await r.json();if(!r.ok)throw Error(data.error);if(JSON.stringify(events)!==JSON.stringify(data)){events=data;render();}$("status").textContent="Live local demo · fictional data";}catch(e){$("status").textContent=e.message;}
+  try{const r=await fetch("./api/demo",{cache:"no-store"}), data=await r.json();if(!r.ok)throw Error(data.error);if(JSON.stringify(events)!==JSON.stringify(data)){events=data;render();}$("status").textContent="Live local demo · fictional data";$("demoSetup").hidden=true;}catch(e){$("status").textContent=e.message;$("demoSetup").hidden=false;}
 }
 $("project").addEventListener("change",()=>{selectedStage="";render();});
 $("role").addEventListener("change",()=>{$("kind").replaceChildren(...roles[$("role").value].map(k=>option(k,labels[k])));configure();});

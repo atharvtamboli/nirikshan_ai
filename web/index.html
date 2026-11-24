@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#123d35">
   <title>Nirikshan · Public Works Atlas</title>
-  <link rel="manifest" href="./manifest.webmanifest"><script defer src="./share.js"></script><link rel="stylesheet" href="./style.css">
+  <link rel="manifest" href="./manifest.webmanifest"><script defer src="./share.js"></script><link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./showcase.css">
   <script src="./analysis.js" defer></script><script src="./app.js" defer></script>
 </head>
 <body>
@@ -15,12 +15,20 @@
   <nav aria-label="Main"><a href="#atlas" data-en="Project atlas" data-hi="परियोजना मानचित्र">Project atlas</a><a href="./review.html" id="review" data-en="Reviewer desk" data-hi="समीक्षा कक्ष">Reviewer desk</a><button id="language" type="button">हिन्दी</button></nav>
 </div></header>
 <main>
-<div style="max-width:1380px;margin:auto;padding:14px clamp(18px,5vw,80px);display:flex;gap:20px;flex-wrap:wrap"><a href="./lifecycle.html">Explore the complete lifecycle demo →</a><a href="./records-request.html">Request missing project records →</a></div>
 <section class="hero">
   <div class="hero-inner"><div class="hero-copy"><p class="eyebrow"><i></i><span data-en="India / Public works" data-hi="भारत / सार्वजनिक निर्माण">India / Public works</span></p>
   <h1><span data-en="Public works," data-hi="जन निर्माण,">Public works,</span><br><em data-en="in plain sight." data-hi="जन निगरानी।">in plain sight.</em></h1>
-  <p data-en="Follow a bridge from tender to inspection. Open the records behind each figure." data-hi="पुल की निविदा से निरीक्षण तक की जानकारी देखें। हर राशि से जुड़ा दस्तावेज़ खोलें।">Follow a bridge from tender to inspection. Open the records behind each figure.</p></div>
+  <p data-en="Follow a bridge from tender to inspection. Open the records behind each figure." data-hi="पुल की निविदा से निरीक्षण तक की जानकारी देखें। हर राशि से जुड़ा दस्तावेज़ खोलें।">Follow a bridge from tender to inspection. Open the records behind each figure.</p><div class="hero-actions"><a class="primary-action" href="./lifecycle.html" data-en="Explore the interactive demo" data-hi="इंटरैक्टिव डेमो देखें">Explore the interactive demo</a><a class="secondary-action" href="#atlas" data-en="Browse real tenders" data-hi="वास्तविक निविदाएं देखें">Browse real tenders</a></div></div>
   <div class="drawing" aria-hidden="true"><div class="sun"></div><div class="deck"></div><div class="piers"></div><div class="water"></div></div></div>
+</section>
+<section class="mission" aria-labelledby="missionTitle">
+  <div class="mission-heading"><div><p class="eyebrow" data-en="Built for public accountability" data-hi="जन जवाबदेही के लिए">Built for public accountability</p><h2 id="missionTitle" data-en="A step toward a corruption-free India." data-hi="भ्रष्टाचार मुक्त भारत की ओर एक कदम।">A step toward a corruption-free India.</h2></div><p data-en="One evidence trail from sanctioned budget to the work on the ground." data-hi="स्वीकृत बजट से धरातल पर निर्माण तक दस्तावेज़ों की एक कड़ी।">One evidence trail from sanctioned budget to the work on the ground.</p></div>
+  <div class="mission-grid">
+    <a href="./lifecycle.html#tracker"><span class="mission-icon" aria-hidden="true">↗</span><strong data-en="Track a project" data-hi="परियोजना की प्रगति देखें">Track a project</strong><small data-en="Explore the fictional bridge lifecycle, approvals and progress." data-hi="काल्पनिक पुल की स्वीकृति और प्रगति देखें।">Explore the fictional bridge lifecycle, approvals and progress.</small></a>
+    <a href="./lifecycle.html#finance"><span class="mission-icon" aria-hidden="true">₹</span><strong data-en="Follow the money" data-hi="खर्च की जानकारी">Follow the money</strong><small data-en="Compare bills, quantities, certified measurements and payments." data-hi="बिल, मात्रा, प्रमाणित माप और भुगतान की तुलना करें।">Compare bills, quantities, certified measurements and payments.</small></a>
+    <a href="./lifecycle.html#citizen"><span class="mission-icon" aria-hidden="true">✓</span><strong data-en="Report an issue" data-hi="समस्या दर्ज करें">Report an issue</strong><small data-en="Try the citizen report and department response loop locally." data-hi="स्थानीय डेमो में नागरिक रिपोर्ट और विभागीय प्रतिक्रिया देखें।">Try the citizen report and department response loop locally.</small></a>
+    <a href="./records-request.html"><span class="mission-icon" aria-hidden="true">≡</span><strong data-en="Request missing records" data-hi="अनुपलब्ध रिकॉर्ड मांगें">Request missing records</strong><small data-en="Prepare a bilingual request using an official tender ID." data-hi="आधिकारिक निविदा आईडी से द्विभाषी अनुरोध बनाएं।">Prepare a bilingual request using an official tender ID.</small></a>
+  </div>
 </section>
 <div class="workspace" id="atlas">
   <aside><p class="eyebrow" data-en="Project atlas" data-hi="परियोजना मानचित्र">Project atlas</p><h2 data-en="Explore projects" data-hi="परियोजनाएँ खोजें">Explore projects</h2>
