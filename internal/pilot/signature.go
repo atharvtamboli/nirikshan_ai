@@ -56,6 +56,10 @@ func signingKey(dir string) (ed25519.PrivateKey, error) {
 }
 
 func signDemoSnapshot(dir, project string, events []demoEvent) (signedSnapshot, error) {
+	return signSnapshot(dir, project, events, true)
+}
+
+func signSnapshot(dir, project string, events []demoEvent, fictional bool) (signedSnapshot, error) {
 	rows := []demoEvent{}
 	for _, event := range events {
 		if event.Project == project {
@@ -69,7 +73,7 @@ func signDemoSnapshot(dir, project string, events []demoEvent) (signedSnapshot, 
 		Fictional  bool        `json:"fictional"`
 		ExportedAt string      `json:"exportedAt"`
 		Events     []demoEvent `json:"events"`
-	}{true, time.Now().UTC().Format(time.RFC3339Nano), rows})
+	}{fictional, time.Now().UTC().Format(time.RFC3339Nano), rows})
 	if err != nil {
 		return signedSnapshot{}, err
 	}
@@ -80,8 +84,12 @@ func signDemoSnapshot(dir, project string, events []demoEvent) (signedSnapshot, 
 	pub := key.Public().(ed25519.PublicKey)
 	digest := sha256.Sum256(payload)
 	fingerprint := sha256.Sum256(pub)
+	format := "nirikshan-workspace-v1"
+	if fictional {
+		format = "nirikshan-demo-v2"
+	}
 	return signedSnapshot{
-		Format: "nirikshan-demo-v2", Payload: string(payload), Digest: hex.EncodeToString(digest[:]),
+		Format: format, Payload: string(payload), Digest: hex.EncodeToString(digest[:]),
 		PublicKey: base64.StdEncoding.EncodeToString(pub), Fingerprint: hex.EncodeToString(fingerprint[:]),
 		Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(key, payload)),
 	}, nil

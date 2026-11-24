@@ -30,8 +30,8 @@ func VerifyEvidence(reader io.Reader, expectedFingerprint string) (VerifiedEvide
 		signedSnapshot
 		Photos map[string]string `json:"photos"`
 	}
-	if err := json.Unmarshal(content, &bundle); err != nil || bundle.Format != "nirikshan-demo-v2" {
-		return VerifiedEvidence{}, fmt.Errorf("expected a signed Nirikshan v2 evidence bundle")
+	if err := json.Unmarshal(content, &bundle); err != nil || (bundle.Format != "nirikshan-demo-v2" && bundle.Format != "nirikshan-workspace-v1") {
+		return VerifiedEvidence{}, fmt.Errorf("expected a signed Nirikshan evidence bundle")
 	}
 	payload := []byte(bundle.Payload)
 	digest := sha256.Sum256(payload)
@@ -59,8 +59,8 @@ func VerifyEvidence(reader io.Reader, expectedFingerprint string) (VerifiedEvide
 		Fictional bool        `json:"fictional"`
 		Events    []demoEvent `json:"events"`
 	}
-	if err := json.Unmarshal(payload, &snapshot); err != nil || !snapshot.Fictional || len(snapshot.Events) == 0 {
-		return VerifiedEvidence{}, fmt.Errorf("invalid demonstration snapshot")
+	if err := json.Unmarshal(payload, &snapshot); err != nil || snapshot.Fictional != (bundle.Format == "nirikshan-demo-v2") || len(snapshot.Events) == 0 {
+		return VerifiedEvidence{}, fmt.Errorf("invalid project snapshot")
 	}
 	project := snapshot.Events[0].Project
 	photos := map[string]bool{}

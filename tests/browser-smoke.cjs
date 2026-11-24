@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
-const {spawn} = require('node:child_process');
+const {spawn, spawnSync} = require('node:child_process');
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function port() {
   const socket = net.createServer();
@@ -24,16 +24,25 @@ async function poll(check, label="local application or browser") {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'nirikshan-browser-'));
   const project=path.resolve(__dirname,'..');
   const p=await port(), debug=await port(), base='http://127.0.0.1:'+p;
-  const server=spawn(path.join(project,'bin','nirikshan.exe'),['-demo'],{cwd:project,env:{...process.env,PORT:String(p),DATA_DIR:path.join(dir,'data'),NIRIKSHAN_DEMO:''},windowsHide:true,stdio:'ignore'});
+  const binary=path.join(project,'bin',process.platform==='win32'?'nirikshan.exe':'nirikshan');
+  const password='browser test password';
+  const env={...process.env,PORT:String(p),DATA_DIR:path.join(dir,'data'),NIRIKSHAN_DEMO:'',NIRIKSHAN_WORKSPACE:'1',NIRIKSHAN_WORKSPACE_HTTPS:''};
+  const provision=spawnSync(binary,['account-add','test-department','government'],{cwd:project,env,input:password+'\n',timeout:15000,encoding:'utf8',windowsHide:true});
+  if(provision.status!==0)throw Error(provision.error?.message||provision.stderr||'Account provisioning failed');
+  const server=spawn(binary,['-demo'],{cwd:project,env,windowsHide:true,stdio:'ignore'});
   let browser, ws;
   try {
-    await poll(async()=> (await fetch(base+'/healthz')).ok,"health check");
+    await poll(async()=> (await fetch(base+'/healthz',{signal:AbortSignal.timeout(1000)})).ok,"health check");
     browser=spawn(process.env.NIRIKSHAN_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',[
       '--headless=new','--disable-gpu','--no-first-run','--disable-extensions','--disable-background-networking','--remote-debugging-port='+debug,'--user-data-dir='+path.join(dir,'browser'),base+'/lifecycle.html'
     ],{windowsHide:true,stdio:'ignore'});
-    const target=await poll(async()=> (await (await fetch('http://127.0.0.1:'+debug+'/json/list')).json()).find(t=>t.type==='page'&&t.url.includes('/lifecycle.html')),"browser startup");
+    const target=await poll(async()=> (await (await fetch('http://127.0.0.1:'+debug+'/json/list',{signal:AbortSignal.timeout(1000)})).json()).find(t=>t.type==='page'&&t.url.includes('/lifecycle.html')),"browser startup");
     ws=new WebSocket(target.webSocketDebuggerUrl);
-    await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=reject;});
+    await new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(Error('Timed out connecting to the browser debugger')),10000);
+      ws.onopen=()=>{clearTimeout(timer);resolve();};
+      ws.onerror=()=>{clearTimeout(timer);reject(Error('Could not connect to the browser debugger'));};
+    });
     let id=0;
     const pending=new Map();
     ws.onmessage=ev=>{const m=JSON.parse(ev.data);if(pending.has(m.id)){pending.get(m.id)(m);pending.delete(m.id);}};
@@ -99,6 +108,20 @@ async function poll(check, label="local application or browser") {
     await query("location.href='"+base+"/';true");
     await poll(()=>query("document.getElementById('detail')?.innerText.includes('Boramcha')"),"public atlas");
     await screenshot('public-atlas');
-    console.log('PASS: Mobile and desktop layout, quality measurement, photo report, acknowledgement, signed evidence and bilingual records request');
+    await call('Page.navigate',{url:base+'/lifecycle.html?mode=workspace'});
+    await poll(()=>query("document.getElementById('workspaceAccount')?.hidden===false"),"workspace sign-in page");
+    const ui=(expression)=>query("(async ($)=>{"+expression+"})(id=>document.getElementById(id))");
+    await ui("$('accountName').value='test-department';$('accountPassword').value="+JSON.stringify(password)+";$('signIn').requestSubmit()");
+    await poll(()=>ui("return $('accountStatus')?.innerText.includes('test-department')"),"workspace login");
+    await ui("Object.entries({projectId:'browser-road',title:'Browser road',amount:'250000'}).forEach(([id,value])=>$(id).value=value);$('event').requestSubmit()");
+    await poll(()=>ui("return $('name')?.innerText==='Browser road'"),"recorded project sanction");
+    await ui("$('kind').value='tender';$('kind').dispatchEvent(new Event('change'));$('tenderText').value="+JSON.stringify("Tender ID: TEST-001\nTitle: Road repairs\nTender Value: Rs. 2,30,000")+";$('extractTender').click()");
+    assert.equal(await ui("return $('amount').value"),'230000');
+    await ui("$('event').requestSubmit()");
+    await poll(()=>ui("return $('current')?.innerText.includes('Tender published')"),"imported tender");
+    assert.match(await ui("return await fetch($('auditDownload').href).then(r=>r.text())"),/Road repairs/);
+    await ui("$('signOut').click()");
+    await poll(()=>ui("return $('workspaceContent').hidden&&$('signIn').hidden===false"),"workspace sign-out");
+    console.log('PASS: demo and authenticated workspace browser journeys');
   } finally { if(ws)ws.close();if(browser)browser.kill();server.kill(); }
 })().catch(error=>{console.error(error.message);process.exitCode=1;});

@@ -8,14 +8,19 @@ roles.citizen.push("reopen","news");
 roles.engineer.push("quality_test");
 Object.assign(labels,{acknowledge:"Department acknowledgement",resolve:"Repair or resolution",reopen:"Report reopened",work_item:"Contract work item",variation:"Approved quantity increase",news:"News source for review"});
 labels.quality_test="Quality test result";
+const isWorkspace=new URL(location.href).searchParams.get("mode")==="workspace";
+const projectAPI=isWorkspace?"./api/workspace/projects":"./api/demo";
+const writeHeaders={"Content-Type":"application/json","X-Nirikshan-Workspace":"1"};
+let account=null, sessionRevision=0;
 let events = [], pending = null, locationEvidence = {}, locationRequest = 0, selectedStage = "";
 const money = n => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:n%100?2:0,maximumFractionDigits:2}).format(n/100);
 function node(tag,text,cls){const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;return el;}
 function option(value,text){const el=node("option",text);el.value=value;return el;}
 function records(){return events.filter(e=>e.project===$("project").value);}
-function record(e){const item=node("div","","record");item.append(node("strong",labels[e.kind]+" · "+e.title),node("p",e.detail),node("small",new Date(e.time).toLocaleString()+" · "+e.id));if(e.amountPaise)item.append(node("strong",money(e.amountPaise)));if(e.source){try{const url=new URL(e.source);if(url.protocol==="https:"){const link=node("a","Open supporting source");link.href=url.href;link.target="_blank";link.rel="noopener noreferrer";item.append(link);}}catch{}}if(e.photoHash){const img=node("img","");img.src="./api/demo/photo/"+e.photoHash;img.alt="Submitted photo for "+e.title;img.loading="lazy";img.className="report-photo";item.append(img,node("small","Image digest: "+e.photoHash));if(e.duplicate)item.append(node("p","Matching image already exists in the demo history","flag"));}if(e.location)item.append(node("small","Approximate device location: "+e.latitude.toFixed(3)+", "+e.longitude.toFixed(3)+" · reported accuracy "+Math.round(e.accuracy)+" m · unverified"));return item;}
+function record(e){const item=node("div","","record");item.append(node("strong",labels[e.kind]+" · "+e.title),node("p",e.detail),node("small",new Date(e.time).toLocaleString()+" · "+e.id+(e.actor?" · "+e.actor:"")));if(e.amountPaise)item.append(node("strong",money(e.amountPaise)));if(e.source){try{const url=new URL(e.source);if(url.protocol==="https:"){const link=node("a","Open supporting source");link.href=url.href;link.target="_blank";link.rel="noopener noreferrer";item.append(link);}}catch{}}if(e.photoHash){const img=node("img","");img.src=projectAPI+"/photo/"+e.photoHash;img.alt="Submitted photo for "+e.title;img.loading="lazy";img.className="report-photo";item.append(img,node("small","Image digest: "+e.photoHash));if(e.duplicate)item.append(node("p","Matching image already exists in the project history","flag"));}if(e.location)item.append(node("small","Approximate device location: "+e.latitude.toFixed(3)+", "+e.longitude.toFixed(3)+" · reported accuracy "+Math.round(e.accuracy)+" m · unverified"));return item;}
 function configure(){
   const kind=$("kind").value, ref=$("ref").value;
+  $("tenderImport").hidden=!isWorkspace||account?.role!=="government"||kind!=="tender";
   $("projectIdLabel").hidden=kind!=="sanction";
   $("scopeFields").hidden=kind!=="sanction";
   $("progressField").hidden=kind!=="progress";
@@ -36,15 +41,26 @@ function render(){
   $("project").replaceChildren(...events.filter(e=>e.kind==="sanction").map(e=>option(e.project,e.title)));
   if([...$("project").options].some(o=>o.value===chosen))$("project").value=chosen;
   const projectURL=new URL(location.href);
-  projectURL.searchParams.set("project",$("project").value);
-  history.replaceState(null,"",projectURL);
+  if($("project").value){
+    projectURL.searchParams.set("project",$("project").value);
+    history.replaceState(null,"",projectURL);
+  }
   const rows=records(), first=rows[0];
-  if(!first)return;
+  if(isWorkspace){
+    $("projectContent").hidden=!first;
+    $("project").closest("label").hidden=!first;
+    $("desk").hidden=!first&&account?.role!=="government";
+    $("reportNow").hidden=account?.role!=="citizen";
+    $("auditDownload").href=projectAPI+"?audit="+encodeURIComponent($("project").value);
+    $("auditDownload").hidden=false;
+    renderPortfolio();
+  }
+  if(!first){configure();return;}
   $("name").textContent=first.title;
   $("route").textContent=first.detail;
   $("routeMap").replaceChildren();
   if(first.startPoint&&first.endPoint){
-    const route=node("div","","route-track");route.append(node("strong",first.startPoint),node("span",""),node("strong",first.endPoint));$("routeMap").append(route,node("small","Illustrative route schematic · endpoints are fictional"));
+    const route=node("div","","route-track");route.append(node("strong",first.startPoint),node("span",""),node("strong",first.endPoint));$("routeMap").append(route,node("small",isWorkspace?"Route schematic · recorded endpoints":"Illustrative route schematic · endpoints are fictional"));
   }else $("routeMap").append(node("p","Route endpoints awaiting record."));
   $("schedule").textContent=[first.state,first.district,first.category,first.startDate&&"Start "+first.startDate,first.endDate&&"Target "+first.endDate].filter(Boolean).join(" · ")||"Schedule awaiting record.";
   const latestProgress=rows.filter(e=>e.kind==="progress").at(-1);
@@ -75,7 +91,7 @@ function render(){
     if(billed>allowed)signals.push(item.title+": billed quantity exceeds approved quantity by "+(billed-allowed)/1000+" "+item.unit+".");
   }
   if(latestProgress&&total("award")&&total("payment")*100/total("award")>(latestProgress.progress||0)+20)signals.push("Payment share is more than 20 percentage points above reported work progress. Review milestone terms.");
-  $("riskSummary").replaceChildren(...(signals.length?signals:["No aggregate discrepancy identified in the recorded demo data."]).map(s=>node("p",s)));
+  $("riskSummary").replaceChildren(...(signals.length?signals:["No aggregate discrepancy identified in the visible records."]).map(s=>node("p",s)));
   const financial=rows.filter(e=>["tender","bid","award","work_item","variation","delivery","bill","certificate","payment"].includes(e.kind));
   $("money").replaceChildren(...financial.map(e=>{
     const card=record(e);
@@ -97,7 +113,7 @@ function render(){
     card.append(node("strong",last==="resolve"?"Resolved":last==="reopen"?"Reopened":last?"Acknowledged":"Submitted · awaiting department"),...responses.map(record));
     const actions=node("div","","record-actions");
     const next=last==="resolve"?["citizen","reopen","Reopen issue"]:last==="acknowledge"||last==="response"?["government","resolve","Record resolution"]:["government","acknowledge","Acknowledge report"];
-    const button=node("button",next[2]);button.type="button";button.addEventListener("click",()=>chooseAction(next[0],next[1],e.id));actions.append(button);card.append(actions);return card;
+    const button=node("button",next[2]);button.type="button";button.addEventListener("click",()=>chooseAction(next[0],next[1],e.id));if(!isWorkspace||next[0]===account?.role){actions.append(button);card.append(actions);}return card;
   }));
   const reports=rows.filter(e=>e.kind==="report");
   const resolved=reports.filter(e=>rows.filter(x=>["response","acknowledge","resolve","reopen"].includes(x.kind)&&x.ref===e.id).at(-1)?.kind==="resolve").length;
@@ -115,12 +131,13 @@ function render(){
   if(current<stages.length-1){
     const next=stages[current+1],role=Object.keys(roles).find(r=>roles[r].includes(next));
     const button=node("button","Record next stage: "+labels[next]);button.type="button";button.addEventListener("click",()=>chooseAction(role,next));
-    $("nextAction").append(button);
+    if(!isWorkspace||role===account?.role)$("nextAction").append(button);
   }
   configure();
   discover();
 }
 function chooseAction(role,kind,reference){
+  if(isWorkspace&&role!==account?.role)return;
   $("role").value=role;$("role").dispatchEvent(new Event("change"));$("kind").value=kind;configure();if(reference)$("ref").value=reference;$("desk").scrollIntoView({behavior:"smooth"});$("title").focus({preventScroll:true});
 }
 $("reportNow").addEventListener("click",()=>chooseAction("citizen","report"));
@@ -133,11 +150,27 @@ function discover(){
   const query=$("projectSearch").value.trim().toLowerCase();
   const matches=events.filter(e=>e.kind==="sanction"&&[e.title,e.state,e.district,e.category,e.detail].join(" ").toLowerCase().includes(query));
   $("discover").replaceChildren(...matches.map(e=>{const button=node("button",e.title+(e.district?" · "+e.district:""));button.type="button";button.addEventListener("click",()=>{$("project").value=e.project;selectedStage="";render();$("name").scrollIntoView({behavior:"smooth",block:"center"});});return button;}));
-  if(!matches.length)$("discover").append(node("p","No demo projects match."));
+  if(!matches.length)$("discover").append(node("p",isWorkspace?"No projects match.":"No demo projects match."));
 }
 $("projectSearch").addEventListener("input",discover);
 async function refresh(){
-  try{const r=await fetch("./api/demo",{cache:"no-store"}), data=await r.json();if(!r.ok)throw Error(data.error);if(JSON.stringify(events)!==JSON.stringify(data)){events=data;render();}$("status").textContent="Live local demo · fictional data";$("demoSetup").hidden=true;}catch(e){$("status").textContent=e.message;$("demoSetup").hidden=false;}
+  if(isWorkspace&&!account)return;
+  const revision=sessionRevision;
+  try {
+    const response=await fetch(projectAPI,{cache:"no-store"});
+    if(revision!==sessionRevision)return;
+    if(isWorkspace&&response.status===401){showAccount(null);$("sessionStatus").textContent="Sign in to continue.";return;}
+    const data=await response.json();
+    if(revision!==sessionRevision)return;
+    if(!response.ok)throw Error(data.error);
+    if(JSON.stringify(events)!==JSON.stringify(data)){events=data;render();}
+    $("status").textContent=isWorkspace?"Department workspace":"Live local demo · fictional data";
+    $("demoSetup").hidden=true;
+  } catch(error){
+    if(revision!==sessionRevision)return;
+    $("status").textContent=error.message;
+    $("demoSetup").hidden=isWorkspace;
+  }
 }
 $("project").addEventListener("change",()=>{selectedStage="";render();});
 $("role").addEventListener("change",()=>{$("kind").replaceChildren(...roles[$("role").value].map(k=>option(k,labels[k])));configure();});
@@ -155,19 +188,22 @@ const fromBase64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 function toBase64(bytes){let binary="";for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(binary);}
 $("export").addEventListener("click",async()=>{
   $("export").disabled=true;
+  const revision=sessionRevision;
+  const project=$("project").value;
   try{
-    const signedResponse=await fetch("./api/demo?snapshot="+encodeURIComponent($("project").value),{cache:"no-store"});
+    const signedResponse=await fetch(projectAPI+"?snapshot="+encodeURIComponent(project),{cache:"no-store"});
     const signed=await signedResponse.json();
     if(!signedResponse.ok)throw Error(signed.error);
     const rows=JSON.parse(signed.payload).events,photos={};
     for(const hash of new Set(rows.map(e=>e.photoHash).filter(Boolean))){
-      const response=await fetch("./api/demo/photo/"+hash);if(!response.ok)throw Error("Photo unavailable: "+hash);
+      const response=await fetch(projectAPI+"/photo/"+hash);if(!response.ok)throw Error("Photo unavailable: "+hash);
       const bytes=new Uint8Array(await response.arrayBuffer());if(await sha256(bytes)!==hash)throw Error("Photo digest mismatch: "+hash);
       photos[hash]=toBase64(bytes);
     }
+    if(revision!==sessionRevision)return;
     const bundle={...signed,photos};
     const url=URL.createObjectURL(new Blob([JSON.stringify(bundle,null,2)],{type:"application/json"}));
-    const link=node("a","");link.href=url;link.download="nirikshan-demo-evidence.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const link=node("a","");link.href=url;link.download=isWorkspace?"nirikshan-"+project+"-evidence.json":"nirikshan-demo-evidence.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     $("verifyResult").textContent="Signed export created with "+Object.keys(photos).length+" photos. Signing fingerprint: "+signed.fingerprint;
   }catch(err){$("verifyResult").textContent=err.message;}finally{$("export").disabled=false;}
 });
@@ -177,9 +213,9 @@ $("verifyFile").addEventListener("change",async()=>{
     if(file.size>50000000)throw Error("Bundle exceeds 50 MB.");
     const bundle=JSON.parse(await file.text());
     const payloadBytes=new TextEncoder().encode(bundle.payload);
-    if(!["nirikshan-demo-v1","nirikshan-demo-v2"].includes(bundle.format)||await sha256(payloadBytes)!==bundle.digest)throw Error("Record digest mismatch.");
+    if(!["nirikshan-demo-v1","nirikshan-demo-v2","nirikshan-workspace-v1"].includes(bundle.format)||await sha256(payloadBytes)!==bundle.digest)throw Error("Record digest mismatch.");
     const trusted=$("trustedKey").value.trim().toLowerCase();
-    if(bundle.format==="nirikshan-demo-v2"){
+    if(bundle.format!=="nirikshan-demo-v1"){
       const publicBytes=fromBase64(bundle.publicKey);
       if(await sha256(publicBytes)!==bundle.fingerprint)throw Error("Signing fingerprint mismatch.");
       if(trusted&&trusted!==bundle.fingerprint)throw Error("Signer differs from trusted fingerprint.");
@@ -187,10 +223,12 @@ $("verifyFile").addEventListener("change",async()=>{
       if(!await crypto.subtle.verify("Ed25519",key,fromBase64(bundle.signature),payloadBytes))throw Error("Invalid record signature.");
     }else if(trusted)throw Error("Unsigned legacy bundle cannot establish signer identity.");
     const data=JSON.parse(bundle.payload);
+    if(bundle.format==="nirikshan-workspace-v1"&&data.fictional!==false)throw Error("Workspace bundle type mismatch.");
+    if(bundle.format==="nirikshan-demo-v2"&&data.fictional!==true)throw Error("Demo bundle type mismatch.");
     for(const hash of new Set(data.events.map(e=>e.photoHash).filter(Boolean))){
       if(!bundle.photos?.[hash]||await sha256(fromBase64(bundle.photos[hash]))!==hash)throw Error("Missing or changed photo: "+hash);
     }
-    $("verifyResult").textContent="Bundle matches its included digests. "+(bundle.format==="nirikshan-demo-v2"?(trusted?"Signature matches trusted fingerprint.":"Signature valid for included key; independently confirm fingerprint "+bundle.fingerprint+"."):"Legacy unsigned bundle.");
+    $("verifyResult").textContent="Bundle matches its included digests. "+(bundle.format!=="nirikshan-demo-v1"?(trusted?"Signature matches trusted fingerprint.":"Signature valid for included key; independently confirm fingerprint "+bundle.fingerprint+"."):"Legacy unsigned bundle.");
   }catch(err){$("verifyResult").textContent="Verification failed: "+err.message;}
 });
 async function preparePhoto(file){
@@ -210,6 +248,7 @@ $("event").addEventListener("submit",async e=>{
   const kind=$("kind").value, amount=$("amount").value.trim();
   if(!/^(\d+)(\.\d{1,2})?$/.test(amount||"0")&&!$("amountLabel").hidden){$("result").textContent="Enter a valid rupee amount with up to two decimal places.";return;}
   $("save").disabled=true;
+  const revision=sessionRevision;
   try{const payload={project:kind==="sanction"?$("projectId").value.trim():$("project").value,kind,title:$("title").value.trim(),detail:$("detail").value,amountPaise:$("amountLabel").hidden?0:Math.round(Number(amount||0)*100),ref:$("refLabel").hidden?"":$("ref").value};
     if(!$("evidenceFields").hidden)Object.assign(payload,locationEvidence,await preparePhoto($("photo").files[0]));
     payload.source=$("source").value.trim();
@@ -227,7 +266,9 @@ $("event").addEventListener("submit",async e=>{
         Object.assign(payload,{invoice,unit,quantityMilli:Math.round(Number(quantity)*1000),ratePaise:Math.round(Number(rate||0)*100)});
       }
     }
+    if(revision!==sessionRevision)return;
     if(!pending||JSON.stringify(pending.payload)!==JSON.stringify(payload))pending={payload,id:crypto.randomUUID()};
-    const r=await fetch("./api/demo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload,id:pending.id})}),data=await r.json();if(!r.ok)throw Error(data.error);pending=null;$("result").textContent="Saved · receipt "+data.id;for(const field of ["title","detail","amount","photo","invoice","unit","quantity","rate","source","sample","testUnit","testLimit","testValue"])$(field).value="";$("clearLocation").click();await refresh();$("project").value=data.project;render();}catch(err){$("result").textContent=err.message;}finally{$("save").disabled=false;}
+    const r=await fetch(projectAPI,{method:"POST",headers:writeHeaders,body:JSON.stringify({...payload,id:pending.id})}),data=await r.json();if(revision!==sessionRevision)return;if(!r.ok)throw Error(data.error);pending=null;$("result").textContent="Saved · receipt "+data.id;for(const field of ["title","detail","amount","photo","invoice","unit","quantity","rate","source","sample","testUnit","testLimit","testValue"])$(field).value="";$("clearLocation").click();await refresh();$("project").value=data.project;render();}catch(err){$("result").textContent=err.message;}finally{$("save").disabled=false;}
 });
-refresh();setInterval(refresh,3000);
+if(isWorkspace)loadWorkspace();else refresh();
+setInterval(refresh,3000);

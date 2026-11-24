@@ -226,6 +226,11 @@ func validEvidence(e Evidence) bool {
 func (a *App) routes(web string) http.Handler {
 	mux := http.NewServeMux()
 	registerDemo(mux, a.store.dir)
+	if os.Getenv("NIRIKSHAN_WORKSPACE") == "1" {
+		if err := registerWorkspace(mux, a.store.dir, os.Getenv("NIRIKSHAN_WORKSPACE_HTTPS") == "1"); err != nil {
+			log.Fatal(err)
+		}
+	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { reply(w, 200, map[string]bool{"ok": true}) })
 	mux.HandleFunc("GET /api/projects", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -330,6 +335,18 @@ func env(k, v string) string {
 	return v
 }
 func Run() {
+	if len(os.Args) > 1 && os.Args[1] == "account-add" {
+		if err := provisionWorkspaceAccount(env("DATA_DIR", "data"), os.Args[2:], os.Stdin); err != nil {
+			log.Fatal(err)
+		}
+		log.Print("Workspace account provisioned")
+		return
+	}
+	if len(os.Args) == 2 && os.Args[1] == "-workspace" {
+		if err := os.Setenv("NIRIKSHAN_WORKSPACE", "1"); err != nil {
+			log.Fatal(err)
+		}
+	}
 	if len(os.Args) == 2 && os.Args[1] == "-demo" {
 		if err := os.Setenv("NIRIKSHAN_DEMO", "1"); err != nil {
 			log.Fatal(err)
@@ -356,7 +373,7 @@ func Run() {
 		a.ids[p.ID] = true
 	}
 	address := ":" + env("PORT", "8080")
-	if os.Getenv("NIRIKSHAN_DEMO") == "1" {
+	if os.Getenv("NIRIKSHAN_DEMO") == "1" || os.Getenv("NIRIKSHAN_WORKSPACE") == "1" {
 		address = "127.0.0.1" + address
 	}
 	srv := &http.Server{Addr: address, Handler: a.routes(web), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
