@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#123d35">
+  <title>Nirikshan · Public Works Atlas</title>
+  <link rel="manifest" href="./manifest.webmanifest"><script defer src="./share.js"></script><link rel="stylesheet" href="./style.css">
+  <script src="./analysis.js" defer></script><script src="./app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#atlas" data-en="Skip to projects" data-hi="परियोजनाओं पर जाएँ">Skip to projects</a>
+<header><div class="top">
+  <a class="brand" href="./" aria-label="Nirikshan home"><span class="mark" aria-hidden="true">N</span>Nirikshan<span class="brand-local" lang="hi">निरीक्षण</span></a>
+  <nav aria-label="Main"><a href="#atlas" data-en="Project atlas" data-hi="परियोजना मानचित्र">Project atlas</a><a href="./review.html" id="review" data-en="Reviewer desk" data-hi="समीक्षा कक्ष">Reviewer desk</a><button id="language" type="button">हिन्दी</button></nav>
+</div></header>
+<main>
+<section class="hero">
+  <div class="hero-inner"><div class="hero-copy"><p class="eyebrow"><i></i><span data-en="India / Public works" data-hi="भारत / सार्वजनिक निर्माण">India / Public works</span></p>
+  <h1><span data-en="Public works," data-hi="जन निर्माण,">Public works,</span><br><em data-en="in plain sight." data-hi="जन निगरानी।">in plain sight.</em></h1>
+  <p data-en="Follow a bridge from tender to inspection. Open the records behind each figure." data-hi="पुल की निविदा से निरीक्षण तक की जानकारी देखें। हर राशि से जुड़ा दस्तावेज़ खोलें।">Follow a bridge from tender to inspection. Open the records behind each figure.</p></div>
+  <div class="drawing" aria-hidden="true"><div class="sun"></div><div class="deck"></div><div class="piers"></div><div class="water"></div></div></div>
+</section>
+<div class="workspace" id="atlas">
+  <aside><p class="eyebrow" data-en="Project atlas" data-hi="परियोजना मानचित्र">Project atlas</p><h2 data-en="Explore projects" data-hi="परियोजनाएँ खोजें">Explore projects</h2>
+  <label class="search"><span aria-hidden="true">⌕</span><input id="query" type="search" data-placeholder-en="Find a bridge or place" data-placeholder-hi="पुल या स्थान खोजें" placeholder="Find a bridge or place" aria-label="Find a bridge or place"></label>
+  <p class="small" id="count" aria-live="polite"></p><div id="projects"></div></aside>
+  <article aria-labelledby="projectName" id="detail"><p role="status" id="loading">Loading project records…</p></article>
+</div></main>
+<footer><div><strong>Nirikshan</strong><span data-en="Independent civic technology project" data-hi="स्वतंत्र नागरिक प्रौद्योगिकी परियोजना">Independent civic technology project</span></div><a href="https://github.com/atharvtamboli/nirikshan_ai">GitHub ↗</a></footer>
+</body></html>

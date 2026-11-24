@@ -1,383 +1,74 @@
-# 🏗️ Nirikshan | Autonomous Infrastructure Ledger
+# Nirikshan · Public Works Atlas
 
-**Nirikshan** is a Go-based blockchain application designed to bring transparency and accountability to public infrastructure projects.
+<div align="center">
+  <img src="web/icon-192.png" width="96" alt="Nirikshan logo">
+  <h2>Public Works Atlas for India</h2>
+  <p>Follow public money from tender to evidence.</p>
+</div>
 
-The system records project proposals, updates, spending information, and audit activity on a tamper-evident blockchain ledger. Instead of silently modifying an existing record, every change becomes part of the project's historical record.
+[![Pilot checks](https://github.com/atharvtamboli/nirikshan_ai/actions/workflows/pilot.yml/badge.svg)](https://github.com/atharvtamboli/nirikshan_ai/actions/workflows/pilot.yml) ![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go) ![Status](https://img.shields.io/badge/status-local%20pilot-176B50)
 
-The current version focuses on the core blockchain implementation, Proof-of-Work mining, project tracking, persistent storage, and a visual blockchain dashboard.
+[Quick start](#run-on-windows-linux-or-macos) · [Data sources](DATA.md) · [Service guide](cmd/pilot/README.md)
 
----
+Follow a Rajasthan bridge tender from the advertised price to the documents available for public inspection. The pilot covers five Udaipur works. Find a bridge in Hindi or English, inspect the official tender, and compare a bill line with a measurement-book entry.
 
-## 🌟 What Nirikshan Does
+| Explore | Investigate | Review |
+| --- | --- | --- |
+| Five sourced bridge tenders, search and shareable links | Compare bill quantities, measurements and contract rates | Submit news or records, review evidence and publish decisions |
+| Hindi and English, mobile layout and offline catalog | Source links and explicit record availability | Persistent event history and receipt tracking |
 
-Nirikshan provides a blockchain-backed system for tracking public infrastructure projects.
+## Architecture
 
-### Current capabilities
-
-* ⛓️ **Blockchain Ledger**
-  Maintains a chain of blocks linked through cryptographic hashes.
-
-* ⛏️ **Proof-of-Work**
-  Blocks are mined using a configurable-style PoW mechanism to demonstrate computational consensus.
-
-* 🔐 **SHA-256 Hashing**
-  Blocks use SHA-256 hashes to maintain the integrity of the chain.
-
-* 📋 **Project Tracking**
-  Infrastructure projects can be created and updated through the application.
-
-* 💰 **Financial & Audit Records**
-  Project spending and updates are recorded as new blockchain entries.
-
-* 💾 **Ledger Persistence**
-  The blockchain is stored in `ledger_backup.json` so the ledger can survive application restarts.
-
-* 🌐 **REST API**
-  The Go backend exposes APIs for interacting with the blockchain and project data.
-
-* 🎨 **3D Blockchain Visualization**
-  Three.js is used to visualize the blockchain through an interactive dashboard.
-
-* 🖥️ **Modern Web Interface**
-  The frontend uses HTML, Tailwind CSS, and Three.js with a glassmorphism-inspired interface.
-
----
-
-## 🛠️ Technology Stack
-
-| Layer         | Technology           |
-| ------------- | -------------------- |
-| Backend       | Go                   |
-| Web Framework | Gin                  |
-| Frontend      | HTML5                |
-| Styling       | Tailwind CSS         |
-| Visualization | Three.js             |
-| Hashing       | SHA-256              |
-| Consensus     | Proof-of-Work        |
-| Data Format   | JSON                 |
-| Storage       | `ledger_backup.json` |
-
----
-
-## 🧠 How It Works
-
-A simplified flow of Nirikshan:
-
-```text
-Project / Audit Update
-        ↓
-   Create Transaction
-        ↓
-   Add to Blockchain
-        ↓
-      Mining
-        ↓
-    Proof-of-Work
-        ↓
-    SHA-256 Hash
-        ↓
-      New Block
-        ↓
-   Persistent Ledger
+```mermaid
+flowchart LR
+    A[Citizen atlas] --> B[Go API]
+    C[Reviewer desk] --> B
+    D[Bill worksheet] --> A
+    B --> E[Project catalog]
+    B --> F[Persistent evidence ledger]
 ```
 
-Each block stores information that connects it to the previous block.
+## Run on Windows, Linux or macOS
 
-```text
-Block 1
-   ↓
-Block 2
-   ↓
-Block 3
-   ↓
-Block 4
+With Go 1.24.1 or newer installed, open a terminal in this directory.
+
+```sh
+go run .
 ```
 
-If information inside an earlier block is modified, its hash changes and the chain relationship can be detected.
+Open **http://localhost:8080**. The new service builds with the Go standard library. Public browsing works immediately. For a local review session on Windows, start the service with the following PowerShell commands. The second line copies a fresh private token to your clipboard for the reviewer page. Clear the clipboard after unlocking.
 
----
-
-## 📁 Project Structure
-
-```text
-Nirikshan/
-│
-├── main.go
-├── index.html
-├── go.mod
-├── go.sum
-├── ledger_backup.json
-└── README.md
+```powershell
+$env:REVIEW_TOKEN = [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
+Set-Clipboard $env:REVIEW_TOKEN
+go run .
 ```
 
----
+## Try one complete workflow
 
-# 🚧 Upcoming Updates
+1. Search for Boramcha. Open the official source beside its advertised amount. Inspect the missing award and payment fields.
+2. Open the bill worksheet. For a hypothetical line, use 12.5 billed units, 10 measured units, a ₹40 contract rate and ₹510 printed subtotal. The differences are ₹10 against the billed calculation and ₹110 against the measured calculation. Check the underlying units, approved changes and source records before drawing conclusions.
+3. In a local review session, submit an evidence link. Copy the receipt and confirm the entry awaits review. Open the reviewer desk, inspect the original, enter a reason, then accept or reject.
+4. Reload the bridge. Approved evidence becomes public. Restart the service using the same data directory and check the record again.
 
-Nirikshan is currently being developed further. The following features are planned for future versions.
+## How evidence works
 
-### 1. 🌐 Multi-Node P2P Blockchain
+Every project has an official source and tender ID. The evidence workflow accepts bills, awards, payments, inspections, news and observations. News is attributable context. Published review checks compare structured entries with linked references. A flag invites inspection of the source. The pilot does not certify engineering quality or establish wrongdoing.
 
-Move from a single-node implementation toward a real distributed blockchain network.
+The five-project source audit and coverage decision are in [DATA.md](DATA.md). [Service operations](cmd/pilot/README.md) describes persistence, reviewer credentials and integrity limits. Root and cmd/pilot launch the same server. The original single-node blockchain prototype is preserved under legacy/ with its own module and README. Legacy routes remain available only by launching that prototype separately.
 
-Planned features:
+## Deploy
 
-* Multiple blockchain nodes
-* Peer discovery
-* Block broadcasting
-* Chain synchronization
-* Valid-chain selection
-* Node health/status monitoring
+Use the repository's render.yaml Blueprint for one native Go service with a persistent disk. Select the branch containing this rebuild. Review the quoted service and disk charges in the hosting account before provisioning. Keep one writer instance. Retrieve the generated REVIEW_TOKEN through the hosting account and share it privately with the designated pilot reviewer. Use the hosted HTTPS address for public links.
 
-```text
-Government Node
-       ↕
-Auditor Node
-       ↕
-Public Observer Node
+After deployment, check /healthz, open a project on a second device and verify a reviewed record survives redeployment. Back up DATA_DIR off-host and rehearse restoring a copy with the same catalog. The static web/ directory can also be served separately for read-only exploration.
+
+## Checks
+
+```sh
+go vet ./...
+go test ./...
+node --test tests/worksheet.test.cjs
 ```
 
----
-
-### 2. ✍️ Digital Signatures
-
-Introduce cryptographic signatures for authorized actions.
-
-Planned approach:
-
-* Public/private key pairs
-* Signed transactions
-* Signature verification
-* Identity-based transaction authorization
-
-This will allow the system to verify that a transaction was actually created by an authorized participant.
-
----
-
-### 3. 📦 Dedicated Transaction Layer
-
-Separate transactions from blocks.
-
-Planned transaction structure:
-
-```text
-Transaction
-├── Transaction ID
-├── Project ID
-├── Action
-├── Amount
-├── Timestamp
-├── Public Key
-└── Digital Signature
-```
-
-Multiple transactions can then be collected into a block before mining.
-
----
-
-### 4. 🧠 Smart-Contract-Like Project Rules
-
-Introduce rules governing valid project state transitions.
-
-Example:
-
-```text
-Proposal
-   ↓
-Approved
-   ↓
-Funds Released
-   ↓
-Construction Started
-   ↓
-Milestone Completed
-   ↓
-Audited
-   ↓
-Completed
-```
-
-Invalid transitions will be rejected by the system.
-
----
-
-### 5. 🔍 Blockchain Integrity Verification
-
-Add a dedicated chain validation system.
-
-Planned endpoint:
-
-```text
-GET /validate
-```
-
-It will verify:
-
-* Block hashes
-* Previous-hash relationships
-* Proof-of-Work
-* Blockchain structure
-* Transaction integrity
-
-The dashboard will display whether the chain is currently valid.
-
----
-
-### 6. 💰 Detailed Financial Transparency
-
-Expand project records to provide a complete financial history.
-
-Example:
-
-```text
-Project Budget       ₹50,00,000
-Funds Released       ₹30,00,000
-Amount Spent         ₹27,50,000
-Remaining            ₹20,00,000
-```
-
-Every financial event will become a traceable blockchain transaction.
-
----
-
-### 7. 👥 Role-Based Access Control
-
-Introduce different system roles:
-
-```text
-ADMIN
-GOVERNMENT
-AUDITOR
-PUBLIC
-```
-
-Each role will have different permissions for creating, updating, auditing, and viewing project information.
-
-JWT-based authentication is planned for API security.
-
----
-
-### 8. 🧊 Advanced 3D Blockchain Visualization
-
-Expand the existing Three.js dashboard to provide deeper blockchain inspection.
-
-Users will eventually be able to select individual blocks and view:
-
-* Block hash
-* Previous hash
-* Nonce
-* Timestamp
-* Transactions
-* Project information
-* Mining information
-
----
-
-### 9. 🔎 Public Project Verification
-
-Introduce a unique verification ID for every infrastructure project.
-
-Example:
-
-```text
-NIR-2026-00421
-```
-
-Anyone will be able to use the ID to inspect:
-
-* Project status
-* Budget
-* Spending history
-* Audit records
-* Blockchain history
-* Chain integrity
-
----
-
-# 🎯 Long-Term Vision
-
-The long-term goal of Nirikshan is to evolve from a blockchain demonstration into a distributed infrastructure accountability platform.
-
-```text
-             NIRIKSHAN
-                 │
-       ┌─────────┴─────────┐
-       │                   │
-   Government            Auditors
-       │                   │
-       └─────────┬─────────┘
-                 │
-          Distributed Ledger
-                 │
-       ┌─────────┴─────────┐
-       │                   │
-   Project Data       Financial Data
-       │                   │
-       └─────────┬─────────┘
-                 │
-           Public Verification
-```
-
-The objective is to make infrastructure records **traceable, verifiable, and resistant to unauthorized modification**.
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-* Go 1.24+
-* Git
-
-### Installation
-
-```bash
-git clone https://github.com/atharvtamboli/nirikshan_ai.git
-cd nirikshan_ai
-go mod tidy
-```
-
-### Run
-
-```bash
-go run main.go
-```
-
-Then open the frontend through the application's configured interface.
-
----
-
-## 📌 Current Development Status
-
-**Current Version:** Core Blockchain Prototype
-
-### Implemented
-
-* Blockchain data structure
-* Block creation
-* SHA-256 hashing
-* Proof-of-Work mining
-* Project recording
-* Audit/update records
-* JSON ledger persistence
-* Go/Gin backend
-* Three.js visualization
-* Web dashboard
-
-### In Development / Planned
-
-* Multi-node P2P network
-* Digital signatures
-* Transaction architecture
-* Chain validation
-* Financial tracking
-* Role-based authentication
-* Smart-contract-like validation
-* Public project verification
-* Advanced blockchain visualization
-
----
-
-## 📄 License
-
-This project is currently maintained as an independent development project by **Atharv Tamboli**.
+Department use requires named reviewer accounts, operational monitoring, moderation ownership and independently backed-up records. This release uses a single-instance event store. Live news scraping, automatic document OCR and independent blockchain anchoring are outside this implementation.

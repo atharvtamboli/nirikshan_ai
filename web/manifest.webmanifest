@@ -1,0 +1,29 @@
+{
+  "id": "./",
+  "name": "Nirikshan · Public Works Atlas",
+  "short_name": "Nirikshan",
+  "description": "Explore public bridge tenders and the evidence behind each figure.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf8ef",
+  "theme_color": "#123d35",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "./mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: nirikshan-pilot
+    runtime: go
+    plan: starter
+    buildCommand: go build -trimpath -o bin/nirikshan .
+    startCommand: ./bin/nirikshan
+    healthCheckPath: /healthz
+    disk:
+      name: evidence
+      mountPath: /var/data/nirikshan
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /var/data/nirikshan
+      - key: REVIEW_TOKEN
+        generateValue: true
